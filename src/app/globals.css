@@ -1,26 +1,98 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* Neo-Brutalist Warung palette */
+  --color-ink: #111111;
+  --color-paper: #fff7e6;
+  --color-brand: #ffd400;
+  --color-accent: #0057ff;
+  --color-danger: #e4002b;
+  --color-ok: #00a651;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --shadow-brutal-sm: 3px 3px 0 0 #111111;
+  --shadow-brutal: 6px 6px 0 0 #111111;
+  --shadow-brutal-lg: 10px 10px 0 0 #111111;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Repeated brutalist surfaces — kept as utilities so components stay readable. */
+@utility card-brutal {
+  border: 3px solid var(--color-ink);
+  box-shadow: var(--shadow-brutal);
+  background-color: #ffffff;
+}
+
+@utility btn-brutal {
+  border: 3px solid var(--color-ink);
+  box-shadow: var(--shadow-brutal-sm);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  transition:
+    transform 80ms ease-out,
+    box-shadow 80ms ease-out;
+
+  &:active:not(:disabled) {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 0 var(--color-ink);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    box-shadow: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility input-brutal {
+  border: 3px solid var(--color-ink);
+  background-color: #ffffff;
+  padding: 0.625rem 0.75rem;
+  width: 100%;
+  font-weight: 500;
+
+  &:focus {
+    outline: none;
+    box-shadow: var(--shadow-brutal-sm);
+  }
+}
+
+/* Diagonal warning stripes — used on section dividers. */
+@utility stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--color-ink) 0px,
+    var(--color-ink) 10px,
+    var(--color-brand) 10px,
+    var(--color-brand) 20px
+  );
+}
+
+/* Leaflet overrides so the map matches the brutalist shell. */
+.leaflet-container {
+  background: #dcd6c8;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.leaflet-control-zoom a {
+  border: 2px solid var(--color-ink) !important;
+  font-weight: 900 !important;
+  color: var(--color-ink) !important;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  border: 3px solid var(--color-ink);
+  border-radius: 0;
+  box-shadow: var(--shadow-brutal-sm);
+}
+
+.leaflet-popup-content {
+  margin: 0.75rem;
 }
