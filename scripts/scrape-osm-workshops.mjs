@@ -8,9 +8,9 @@
  *   node scripts/scrape-osm-workshops.mjs --apply    # dry-run first, then insert
  *   node scripts/scrape-osm-workshops.mjs --limit 20 --apply
  *
- * Reads SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from .env.local if present
- * (same file the app uses). Inserting into `workshops` is an admin action, so
- * the service_role key is required for --apply.
+ * Reads NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from .env.local
+ * if present (same file the app uses). Inserting into `workshops` is an admin
+ * action, so the service_role key is required for --apply.
  *
  * Data source: © OpenStreetMap contributors (ODbL). This script makes no claim
  * of completeness — most tambal ban shops in Indonesia are NOT in OSM. Treat
@@ -116,9 +116,9 @@ function dedupes(rows, existing) {
   return rows.filter((r) => !existing.has(r.osm_id) && r.osm_id !== null);
 }
 
-async function fetchExisting(env) {
+async function fetchExisting(env, supabaseUrl) {
   const res = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/workshops?select=osm_id&osm_id=not.is.null`,
+    `${supabaseUrl}/rest/v1/workshops?select=osm_id&osm_id=not.is.null`,
     {
       headers: {
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -132,11 +132,11 @@ async function fetchExisting(env) {
   return new Set(data.map((w) => Number(w.osm_id)));
 }
 
-async function insert(env, rows) {
+async function insert(env, supabaseUrl, rows) {
   let inserted = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
     const chunk = rows.slice(i, i + BATCH);
-    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/workshops`, {
+    const res = await fetch(`${supabaseUrl}/rest/v1/workshops`, {
       method: "POST",
       headers: {
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -168,14 +168,15 @@ const rows = elements.map(mapRow).filter(Boolean);
 console.log(`2. Mapped to ${rows.length} workshops (${elements.length - rows.length} skipped: no name / no coords)`);
 
 const env = loadEnv();
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || env.SUPABASE_URL;
 let finalRows = rows;
-if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+if (supabaseUrl && env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("3. Loading existing osm_ids from Supabase for dedup...");
-  const existing = await fetchExisting(env);
+  const existing = await fetchExisting(env, supabaseUrl);
   finalRows = dedupes(rows, existing);
   console.log(`   ${finalRows.length} new (${rows.length - finalRows.length} already imported)`);
 } else {
-  console.log("3. SKIPPING dedup — SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY tidak ditemukan.");
+  console.log("3. SKIPPING dedup — NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY tidak ditemukan.");
 }
 
 if (limit > 0) finalRows = finalRows.slice(0, limit);
@@ -188,10 +189,10 @@ for (const r of finalRows.slice(0, 5)) {
 }
 
 if (apply) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("--apply butuh SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY di .env.local");
+  if (!supabaseUrl || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("--apply butuh NEXT_PUBLIC_SUPABASE_URL (atau SUPABASE_URL) + SUPABASE_SERVICE_ROLE_KEY di .env.local");
   }
-  const n = await insert(env, finalRows);
+  const n = await insert(env, supabaseUrl, finalRows);
   console.log(`5. Done — ${n} workshops imported (source='osm', verified=false).`);
   console.log('   Attribution: data © OpenStreetMap contributors (ODbL).');
 } else {
