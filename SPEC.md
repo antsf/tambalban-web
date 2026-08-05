@@ -1,6 +1,6 @@
 # SPEC.md — TambalBan Web
 
-Read `soul.md` first for project philosophy. This document is the technical spec — what exists, and the contract for anything added to it.
+Read `../soul.md` first for project philosophy. This document is the technical spec — what exists, and the contract for anything added to it.
 
 ---
 
@@ -216,7 +216,7 @@ tambalban-web/
 
 ## 10. Out of Scope for v1
 
-- No community voting — review is admin-only by design (see `soul.md` — accuracy over crowd speed for an emergency-use dataset).
+- No community voting — review is admin-only by design (see `../soul.md` — accuracy over crowd speed for an emergency-use dataset).
 - No user accounts on the web side (the Android app's auth is separate and unrelated to this site).
 - No PostGIS — `workshops` is small enough for plain lat/lng column comparisons (`idx_workshops_location`); revisit if the table passes ~50k rows (noted in `geo.ts`).
 - No photo uploads for submissions (the Android app's `AddWorkshopActivity` may add this later; not mirrored here yet).
