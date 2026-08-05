@@ -2,46 +2,60 @@
 
 Data-collection website for the [TambalBan](https://github.com/antsf/tambalban) Android app — a
 crowdsourced map of tire repair shops (tambal ban) in Indonesia. Same Supabase project as the app;
-this site is just another front door onto the `workshops` / `workshop_submissions` tables.
+this site is just another front door onto the shared `tambal_ban` table.
 
-## Stack
+> **MID-REWRITE (2026-08).** This codebase is being rewritten from Next.js to a lightweight stack
+> (HTML/CSS/JS + HTMX + Hono, Cloudflare Workers) and pivoted to the real shared table
+> `tambal_ban`. The current Next.js code in `src/` still targets the retired
+> `workshops`/`workshop_submissions` design and does **not** work against the live DB — treat it as
+> deprecated scaffolding. `SPEC.md` describes the target state.
+
+## Target (the rewrite)
+
+- Public map reading only `verified=true` rows from `tambal_ban` (Leaflet + OSM tiles).
+- Register/login via **Supabase Auth** — the same account store as the Android app.
+- Submit form (login required) inserting `source='user'`, `verified=false`; an admin flips
+  `verified=true` to publish.
+- Admin gate: shared `ADMIN_PASSWORD` + HMAC-signed cookie.
+- Details: [`SPEC.md`](./SPEC.md), philosophy: [`../soul.md`](../soul.md).
+
+## Current (deprecated) stack
 
 - Next.js 16 (App Router, Turbopack), TypeScript strict, Tailwind v4
 - Supabase (PostgreSQL) — reuses the Android app's project
-- Leaflet + OpenStreetMap tiles, Nominatim for geocoding
+- Leaflet + OpenStreetMap tiles, Nominatim for geocoding (proxied via `/api/geocode`)
 - Zod for input validation
-
-## Pages
-
-| Route | What |
-|---|---|
-| `/` | Public map — viewport-bounded query against `workshops` |
-| `/submit` | Public form — pin a location, fill details, writes to `workshop_submissions` (status `pending`) |
-| `/admin` | Password-gated review queue — approve promotes a submission into `workshops`, reject marks it `rejected` |
-| `/admin/login` | Admin password form |
 
 ## Setup
 
 ```bash
 npm install
-cp .env.local.example .env.local   # already done in this checkout — fill in the blanks below
 ```
 
-Fill in `.env.local`:
+Fill in `.env.local` (copy of `.env.local.example` pattern — create it):
 
-- `SUPABASE_SERVICE_ROLE_KEY` — Supabase dashboard → Settings → API → `service_role` secret. Server-only, never commit.
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase dashboard → Settings → API → Project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — dashboard → Settings → API → anon key (public, RLS-scoped)
+- `SUPABASE_SERVICE_ROLE_KEY` — dashboard → Settings → API → `service_role` secret. Server-only, never commit.
 - `ADMIN_PASSWORD` — whatever you want to log into `/admin` with.
 - `ADMIN_SESSION_SECRET` — random 32+ char string, e.g. `openssl rand -hex 32`.
+- `NOMINATIM_USER_AGENT` (optional) — identifies this app to OSM geocoding.
 
-Then run the schema migration once, in the Supabase SQL editor (same project as the app):
+Run the schema migration once, in the Supabase SQL editor (same project as the app):
 
 ```
-supabase/migrations/001_web_submission_fields.sql
+supabase/migrations/002_tambal_ban_attributes_user_submissions.sql
 ```
 
-It adds the columns this site needs (`open_time`, `close_time`, `is_24h`, `notes`, `reviewed_at`,
-`approved_workshop_id`) to `workshop_submissions` — the app's original `supabase_schema.sql` already
-covers `workshops` and the base `workshop_submissions` table.
+(Adds `user_id` + auto-stamp trigger, contact/service/OSM columns, `verified_at`, fixes RLS.
+`001_web_submission_fields.sql` is obsolete — it targeted the retired `workshop_submissions` table.)
+
+OSM import (optional starter data):
+
+```bash
+node scripts/scrape-osm-workshops.mjs            # dry-run
+node scripts/scrape-osm-workshops.mjs --apply    # insert into tambal_ban
+```
 
 ```bash
 npm run dev      # http://localhost:3000
@@ -51,13 +65,8 @@ npm run lint
 
 ## Security notes
 
-- `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security — it's only ever touched by
-  `src/lib/supabase/admin.ts`, which every `/api/admin/*` route double-checks against
-  `isAdmin()` before use.
-- The admin session cookie is `httpOnly`, HMAC-signed (`src/lib/auth.ts`), and expires after 12h.
-  `src/proxy.ts` does a cheap existence check to redirect anonymous visitors; the actual signature
-  verification happens in the page and in every admin API route.
-- Approved-only visibility: `/api/workshops` only ever reads from `workshops` (already-approved
-  data), never from `workshop_submissions`.
-- Indonesia bounds (`lat -11..6`, `lng 95..141`) are enforced in `src/lib/validation.ts` and checked
-  again client-side before submit.
+- `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security — server-only, only in admin routes.
+- Public routes only ever read `verified=true` rows from `tambal_ban` — never unverified data.
+- Anonymous INSERT is blocked by RLS (`user_insert` requires an authenticated token); the web app
+  will send the logged-in user's token once Supabase Auth is wired in.
+- Indonesia bounds (`lat -11..6`, `lng 95..141`) enforced in `src/lib/validation.ts`.
