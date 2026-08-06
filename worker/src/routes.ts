@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
+import { z } from "zod";
 import type { Env } from "./lib/env";
 import * as db from "./lib/supabase";
 import * as sauth from "./lib/supabase-auth";
@@ -12,6 +13,7 @@ import {
   geocodeSchema,
   adminLoginSchema,
   bboxSchema,
+  adminDataQuerySchema,
 } from "./lib/validation";
 import {
   homePage,
@@ -20,6 +22,8 @@ import {
   submitPage,
   adminLoginPage,
   adminQueuePage,
+  adminAllDataPage,
+  adminDataList,
 } from "./views/pages";
 import { errorToast, successToast } from "./views/layout";
 
@@ -47,6 +51,23 @@ app.get("/admin", async (c) => {
     return c.html(adminQueuePage(rows));
   } catch {
     return c.html(errorToast("Gagal memuat antrian."), 500);
+  }
+});
+
+app.get("/admin/data", async (c) => {
+  if (!(await isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET))) return c.redirect("/admin/login");
+  const parsed = adminDataQuerySchema.safeParse(c.req.query());
+  const q: z.infer<typeof adminDataQuerySchema> = parsed.success ? parsed.data : { limit: 100 };
+  try {
+    const rows = await db.fetchAllWorkshops(c.env, {
+      search: q.search,
+      verified: q.verified === "true" ? true : q.verified === "false" ? false : undefined,
+      source: q.source,
+      limit: q.limit,
+    });
+    return c.html(adminAllDataPage(rows, q));
+  } catch {
+    return c.html(errorToast("Gagal memuat data."), 500);
   }
 });
 
@@ -223,6 +244,23 @@ app.get("/api/admin/submissions", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   try {
     return c.json(await db.fetchUnverifiedSubmissions(c.env));
+  } catch {
+    return c.json({ error: "Gagal memuat" }, 502);
+  }
+});
+
+app.get("/api/admin/workshops", async (c) => {
+  if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
+  const parsed = adminDataQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) return c.json({ error: "Parameter tidak valid" }, 400);
+  try {
+    const rows = await db.fetchAllWorkshops(c.env, {
+      search: parsed.data.search,
+      verified: parsed.data.verified === "true" ? true : parsed.data.verified === "false" ? false : undefined,
+      source: parsed.data.source,
+      limit: parsed.data.limit,
+    });
+    return c.html(adminDataList(rows));
   } catch {
     return c.json({ error: "Gagal memuat" }, 502);
   }

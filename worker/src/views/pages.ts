@@ -91,7 +91,7 @@ export function homePage(): string {
       <div id="map" class="h-[70vh] w-full overflow-hidden rounded-xl border border-slate-200"></div>
       <p class="text-xs text-slate-400">Lokasi bengkel yang terverifikasi. Lihat langsung lokasi di peta saat pan/zoom.</p>
     </div>`;
-  return layout({ title: "Peta", active: "home", scripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col", noContainer: false }, body);
+  return layout({ title: "Peta", active: "home", inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col", noContainer: false }, body);
 }
 
 export function loginPage(error?: string): string {
@@ -184,7 +184,7 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
         </form>
       </div>
     </div>`;
-  return layout({ title: "Tambah bengkel", active: "submit", bodyClass: "flex min-h-screen flex-col", scripts: [SUBMIT_MAP_JS] }, body);
+  return layout({ title: "Tambah bengkel", active: "submit", bodyClass: "flex min-h-screen flex-col", inlineScripts: [SUBMIT_MAP_JS] }, body);
 }
 
 export function adminLoginPage(error?: string): string {
@@ -252,4 +252,93 @@ export function adminQueuePage(rows: UnverifiedSubmission[]): string {
     <ul id="queue" class="mt-4 space-y-3">${list}</ul>
     <p class="mt-6 text-xs text-slate-400">Menerbitkan menandai verified=true dan menguncinya. Menghapus menghapus baris dari database.</p>`;
   return layout({ title: "Antrian admin", active: "admin", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
+}
+
+export interface AdminDataQuery {
+  search?: string;
+  verified?: string;
+  source?: string;
+  limit?: number;
+}
+
+function badge(text: string, cls: string): string {
+  return `<span class="rounded-full px-2 py-0.5 text-xs font-medium ${cls}">${esc(text)}</span>`;
+}
+
+function adminDataRow(row: Workshop): string {
+  const services = SERVICE_LABELS.filter(([k]) => row[k]).map(([, label]) => label);
+  const svc = services.length
+    ? `<p class="mt-1 text-xs text-slate-400">${services.map((s) => badge(s, "bg-slate-100 text-slate-600")).join(" ")}</p>`
+    : "";
+  const link = row.lat != null && row.lon != null
+    ? `<a class="text-emerald-600 hover:underline" target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${row.lat}&mlon=${row.lon}#map=17/${row.lat}/${row.lon}">Lihat di peta</a>`
+    : "";
+  const meta = [
+    row.city ? esc(row.city) : "",
+    row.province ? esc(row.province) : "",
+    row.phone ? `Telp: ${esc(row.phone)}` : "",
+    row.opening_hours ? `Jam: ${esc(row.opening_hours)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return `<li class="rounded-xl border border-slate-200 bg-white p-4">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="font-semibold text-slate-900">${esc(row.name)}</h3>
+          ${row.source === "osm" ? badge("OSM", "bg-sky-100 text-sky-700") : badge("pengguna", "bg-violet-100 text-violet-700")}
+          ${row.verified ? badge("terverifikasi", "bg-emerald-100 text-emerald-700") : badge("belum", "bg-amber-100 text-amber-700")}
+        </div>
+        ${meta ? `<p class="mt-1 text-sm text-slate-500">${meta}</p>` : ""}
+        ${row.address ? `<p class="mt-1 text-sm text-slate-500">${esc(row.address)}</p>` : ""}
+        ${svc}
+        <p class="mt-1 text-xs text-slate-400">Dibuat ${esc(row.created_at)}${row.verified_at ? ` · diterbitkan ${esc(row.verified_at)}` : ""}</p>
+      </div>
+      <div class="flex gap-2">
+        ${link}
+        ${row.verified
+          ? ""
+          : `<button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML"
+              class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Terbitkan</button>`}
+        <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?"
+          class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
+      </div>
+    </div>
+  </li>`;
+}
+
+export function adminDataList(rows: Workshop[]): string {
+  if (!rows.length) {
+    return `<li class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Tidak ada data yang cocok.</li>`;
+  }
+  return rows.map(adminDataRow).join("");
+}
+
+export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): string {
+  const sel = (name: string, value: string | undefined, options: Array<[string, string]>) =>
+    `<select name="${name}" hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" hx-trigger="change"
+        hx-include="closest form" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none">
+      <option value="">${esc(options[0][1])}</option>
+      ${options
+        .slice(1)
+        .map(([v, label]) => `<option value="${v}" ${value === v ? "selected" : ""}>${esc(label)}</option>`)
+        .join("")}
+    </select>`;
+  const body = `
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h1 class="text-lg font-semibold text-slate-900">Semua data (${rows.length} baris termuat)</h1>
+        <a href="/admin/data" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
+      </div>
+      <form hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" class="flex flex-wrap items-center gap-2">
+        <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari nama / alamat / kota…"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none sm:w-64" />
+        ${sel("verified", query.verified, [["", "Semua status"], ["false", "Belum terverifikasi"], ["true", "Terverifikasi"]])}
+        ${sel("source", query.source, [["", "Semua sumber"], ["user", "Pengguna"], ["osm", "OSM"]])}
+        <button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Terapkan</button>
+      </form>
+      <ul id="data-list" class="space-y-3">${adminDataList(rows)}</ul>
+      <p class="text-xs text-slate-400">Menampilkan hingga 100 baris terbaru. Terbitkan menandai verified=true; Hapus menghapus baris dari database.</p>
+    </div>`;
+  return layout({ title: "Data admin", active: "data", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
 }

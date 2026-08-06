@@ -68,6 +68,13 @@ export const adminLoginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+export const adminDataQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  verified: z.enum(["true", "false"]).optional(),
+  source: z.enum(["user", "osm"]).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(100),
+});
+
 export const bboxSchema = z
   .object({
     search: z.string().trim().max(200).optional(),

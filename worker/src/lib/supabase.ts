@@ -134,6 +134,28 @@ export async function fetchUnverifiedSubmissions(env: Env): Promise<UnverifiedSu
   return res.json() as Promise<UnverifiedSubmission[]>;
 }
 
+/** Admin: list every row in tambal_ban (service role bypasses RLS). */
+export async function fetchAllWorkshops(
+  env: Env,
+  opts: { search?: string; verified?: boolean; source?: string; limit?: number } = {},
+): Promise<Workshop[]> {
+  const params = new URLSearchParams();
+  params.set("select", WORKSHOP_SELECT);
+  params.set("order", "created_at.desc");
+  params.set("limit", String(opts.limit ?? 100));
+  if (opts.search) {
+    params.set("or", `(name.ilike.*${opts.search}*,address.ilike.*${opts.search}*,city.ilike.*${opts.search}*)`);
+  }
+  if (opts.verified !== undefined) params.set("verified", opts.verified ? "eq.true" : "eq.false");
+  if (opts.source) params.set("source", `eq.${opts.source}`);
+  const res = await fetch(
+    `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/tambal_ban?${params.toString()}`,
+    { headers: bearer(env.SUPABASE_SERVICE_ROLE_KEY) },
+  );
+  if (!res.ok) throw new Error(`admin all-data read failed: ${res.status} ${await res.text()}`);
+  return res.json() as Promise<Workshop[]>;
+}
+
 /** Admin: flip verified=true and stamp verified_at. */
 export async function publishSubmission(env: Env, id: string): Promise<void> {
   const res = await fetch(

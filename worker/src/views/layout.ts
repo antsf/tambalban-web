@@ -14,12 +14,14 @@ interface LayoutOptions {
   admin?: boolean;
   bodyClass?: string;
   scripts?: string[];
+  inlineScripts?: string[];
   noContainer?: boolean;
 }
 
 export function layout(opts: LayoutOptions, body: string): string {
-  const { title, active, admin = false, bodyClass = "", scripts = [], noContainer = false } = opts;
+  const { title, active, admin = false, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false } = opts;
   const cdn = (src: string) => `<script src="${src}"></script>`;
+  const inline = (code: string) => `<script>${code}</script>`;
   const header = `
     <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -32,6 +34,7 @@ export function layout(opts: LayoutOptions, body: string): string {
           <a href="/submit" class="rounded-lg px-3 py-1.5 ${active === "submit" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Tambah</a>
           ${admin
             ? `<a href="/admin" class="rounded-lg px-3 py-1.5 ${active === "admin" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Antrian</a>
+               <a href="/admin/data" class="rounded-lg px-3 py-1.5 ${active === "data" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Data</a>
                <a href="/api/admin/logout" class="rounded-lg px-3 py-1.5 hover:bg-slate-100">Keluar</a>`
             : `<a href="/login" class="rounded-lg px-3 py-1.5 hover:bg-slate-100">Masuk</a>`}
         </nav>
@@ -62,6 +65,7 @@ export function layout(opts: LayoutOptions, body: string): string {
   ${main}
   ${footer}
   ${scripts.map(cdn).join("\n")}
+  ${inlineScripts.map(inline).join("\n")}
 </body>
 </html>`;
 }
