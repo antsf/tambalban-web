@@ -16,10 +16,17 @@ interface LayoutOptions {
   scripts?: string[];
   inlineScripts?: string[];
   noContainer?: boolean;
+  /** Load Leaflet (CSS + JS) for pages that render a map (`/` and the logged-in `/submit`). Off otherwise. */
+  maps?: boolean;
+  /** Meta description; a sensible default is used when omitted. */
+  description?: string;
 }
 
+const DEFAULT_DESCRIPTION =
+  "Peta bengkel tambal ban terverifikasi di Indonesia. Cari tambalan ban terdekat dan kirim lokasi bengkel baru.";
+
 export function layout(opts: LayoutOptions, body: string): string {
-  const { title, active, admin = false, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false } = opts;
+  const { title, active, admin = false, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION } = opts;
   const cdn = (src: string) => `<script src="${src}"></script>`;
   const inline = (code: string) => `<script>${code}</script>`;
   const header = `
@@ -43,9 +50,9 @@ export function layout(opts: LayoutOptions, body: string): string {
       </div>
     </header>`;
 
-  const main = noContainer ? body : `<main class="mx-auto max-w-6xl px-4 py-6">${body}</main>`;
+const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4 py-6">${body}</main>`;
   const footer = `
-    <footer class="mt-12 border-t border-slate-200 py-6 text-center text-xs text-slate-400">
+    <footer class="mt-12 border-t border-slate-200 py-6 text-center text-xs text-slate-500">
       Data: OpenStreetMap © kontributor (ODbL) & pengguna. Selalu verifikasi sebelum percaya.
     </footer>`;
 
@@ -54,16 +61,21 @@ export function layout(opts: LayoutOptions, body: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="${esc(description)}" />
+  ${admin ? `<meta name="robots" content="noindex" />` : ""}
   <title>${esc(title)} · TambalBan</title>
   <link rel="stylesheet" href="/tailwind.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  ${maps ? `<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />` : ""}
   ${cdn("https://unpkg.com/htmx.org@2.0.4")}
   ${cdn("https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js")}
-  ${cdn("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")}
+  ${maps ? cdn("https://unpkg.com/leaflet@1.9.4/dist/leaflet.min.js") : ""}
 </head>
 <body class="bg-slate-50 text-slate-900 ${bodyClass}">
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow">
+    Langsung ke konten utama
+  </a>
   ${header}
-  <div id="toast" class="fixed left-1/2 top-20 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 space-y-2"></div>
+  <div id="toast" role="status" aria-live="polite" class="fixed left-1/2 top-20 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 space-y-2"></div>
   ${main}
   ${footer}
   ${scripts.map(cdn).join("\n")}
@@ -84,15 +96,16 @@ export function field(
   id: string,
   label: string,
   value: string,
-  opts: { type?: string; placeholder?: string; required?: boolean; hint?: string } = {},
+  opts: { type?: string; placeholder?: string; required?: boolean; hint?: string; autocomplete?: string } = {},
 ): string {
-  const { type = "text", placeholder = "", required = false, hint } = opts;
+  const { type = "text", placeholder = "", required = false, hint, autocomplete } = opts;
   return `<div>
     <label for="${id}" class="mb-1 block text-sm font-medium text-slate-700">${esc(label)}</label>
     <input id="${id}" name="${id}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}"
       ${required ? "required" : ""}
+      ${autocomplete ? `autocomplete="${autocomplete}"` : ""}
       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
-    ${hint ? `<p class="mt-1 text-xs text-slate-400">${esc(hint)}</p>` : ""}
+    ${hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : ""}
   </div>`;
 }
 

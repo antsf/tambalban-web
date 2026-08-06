@@ -27,22 +27,49 @@ function popup(w){
   h.push('</div>');
   return h.join('');
 }
+function rowHtml(w){
+  const city=esc(w.city||'');
+  const tel=w.phone? '<a class="font-medium text-emerald-600 hover:underline" href="tel:'+esc(w.phone)+'">Telepon</a>':'';
+  return '<li class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">'
+    +'<div class="min-w-0">'
+    +'<div class="truncate font-medium text-slate-900">'+esc(w.name)+'</div>'
+    +(city?'<div class="truncate text-sm text-slate-500">'+city+'</div>':'')
+    +'</div>'
+    +'<div class="flex shrink-0 items-center gap-3 text-sm">'
+    +'<button type="button" onclick="focusMarker(\''+esc(w.id)+'\')" class="font-medium text-slate-700 hover:underline">Lihat di peta</button>'
+    +tel
+    +'</div></li>';
+}
 const map=L.map('map').setView([-2.5,118],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 const layer=L.layerGroup().addTo(map);
+const markers=new Map();
 let deb;
 async function load(){
   const b=map.getBounds();
   const p=new URLSearchParams({minLat:b.getSouth().toFixed(4),maxLat:b.getNorth().toFixed(4),minLng:b.getWest().toFixed(4),maxLng:b.getEast().toFixed(4)});
   const q=document.getElementById('q')?.value;
   if(q) p.set('search',q);
+  const count=document.getElementById('count');
+  const hint=document.getElementById('map-hint');
+  const list=document.getElementById('results-list');
   try{
     const rows=await (await fetch('/api/workshops?'+p)).json();
     layer.clearLayers();
-    for(const w of rows) L.marker([w.lat,w.lon]).addTo(layer).bindPopup(popup(w));
-    document.getElementById('count').textContent=rows.length+' bengkel di layar';
-    document.getElementById('map-hint').textContent=rows.length?'':'Belum ada bengkel di area ini. Geser peta atau cari nama/kota.';
-  }catch(e){}
+    markers.clear();
+    for(const w of rows) markers.set(w.id,L.marker([w.lat,w.lon]).addTo(layer).bindPopup(popup(w)));
+    count.textContent=rows.length+' bengkel di layar';
+    hint.textContent=rows.length?'':'Belum ada bengkel di area ini. Geser peta atau cari nama/kota.';
+    list.innerHTML=rows.map(rowHtml).join('');
+  }catch(e){
+    count.textContent='Gagal memuat data';
+    hint.textContent='Geser peta atau coba lagi untuk memuat ulang.';
+    list.innerHTML='';
+  }
+}
+function focusMarker(id){
+  const m=markers.get(id);
+  if(m){ map.setView(m.getLatLng(),15); m.openPopup(); }
 }
 function requestLoad(){clearTimeout(deb);deb=setTimeout(load,350);}
 map.on('moveend',requestLoad);
@@ -79,6 +106,24 @@ async function geocode(){
     if(!document.getElementById('address').value) document.getElementById('address').value=r.display_name||'';
   }catch(e){document.getElementById('geocode-msg').textContent='Gagal mencari.';}
 }
+function useMyLocation(){
+  const msg=document.getElementById('geocode-msg');
+  if(!navigator.geolocation){ msg.textContent='Lokasi tidak tersedia di peramban ini.'; return; }
+  msg.textContent='Mencari lokasi…';
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      const lat=pos.coords.latitude, lon=pos.coords.longitude;
+      if(marker) map.removeLayer(marker);
+      marker=L.marker([lat,lon]).addTo(map);
+      map.setView([lat,lon],15);
+      document.getElementById('lat').value=lat;
+      document.getElementById('lon').value=lon;
+      document.getElementById('pick-note').textContent='Titik dipilih: '+lat.toFixed(5)+', '+lon.toFixed(5)+' (lokasi Anda)';
+      msg.textContent='';
+    },
+    function(){ msg.textContent='Tidak bisa dapatkan lokasi. Izinkan akses lokasi, lalu coba lagi.'; }
+  );
+}
 document.addEventListener('DOMContentLoaded',function(){loadCached();});
 function loadCached(){
   const lat=document.getElementById('lat').value, lon=document.getElementById('lon').value;
@@ -94,14 +139,15 @@ export function homePage(): string {
           <h1 class="text-lg font-semibold text-slate-900">Peta bengkel tambal ban</h1>
           <p class="text-sm text-slate-500">Cari bengkel terdekat dan hubungi langsung lewat tombol di popup.</p>
         </div>
-        <span id="count" class="text-sm text-slate-400">memuat…</span>
+        <span id="count" aria-live="polite" class="text-sm text-slate-500">memuat…</span>
         <input id="q" type="search" placeholder="Cari nama / kota…" aria-label="Cari bengkel berdasarkan nama atau kota" oninput="requestLoad()"
           class="ml-auto w-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:w-64 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
       </div>
-      <div id="map" role="region" aria-label="Peta bengkel terverifikasi" class="h-[70vh] w-full overflow-hidden rounded-xl border border-slate-200"></div>
-      <p id="map-hint" class="text-xs text-slate-400">Lokasi bengkel yang terverifikasi. Lihat langsung lokasi di peta saat pan/zoom.</p>
+      <div id="map" role="region" aria-label="Peta bengkel terverifikasi" class="h-[70vh] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100"></div>
+      <p id="map-hint" aria-live="polite" class="text-xs text-slate-500">Lokasi bengkel yang terverifikasi. Lihat langsung lokasi di peta saat pan/zoom.</p>
+      <ul id="results-list" aria-live="polite" aria-label="Daftar bengkel yang tampil di layar" class="space-y-2"></ul>
     </div>`;
-  return layout({ title: "Peta", active: "home", inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col" }, body);
+  return layout({ title: "Peta", active: "home", maps: true, inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
 export function loginPage(error?: string): string {
@@ -161,8 +207,11 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
       <div class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         <div>
           <label class="mb-1 block text-sm font-medium text-slate-700">1. Titik lokasi di peta</label>
-          <div id="pick" role="region" aria-label="Peta pemilih lokasi" class="h-64 w-full overflow-hidden rounded-lg border border-slate-300"></div>
-          <p id="pick-note" class="mt-1 text-xs text-slate-400">Klik peta untuk menandai lokasi, atau cari alamat di bawah.</p>
+          <div id="pick" role="region" aria-label="Peta pemilih lokasi" class="h-64 w-full overflow-hidden rounded-lg border border-slate-300 bg-slate-100"></div>
+          <p id="pick-note" aria-live="polite" class="mt-1 text-xs text-slate-500">Klik peta untuk menandai lokasi, cari alamat, atau pakai lokasi Anda.</p>
+          <button type="button" onclick="useMyLocation()" class="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Pakai lokasi saya
+          </button>
         </div>
         <div>
           <label for="addr" class="mb-1 block text-sm font-medium text-slate-700">2. Cari alamat</label>
@@ -171,19 +220,19 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
             <button type="button" onclick="geocode()" class="shrink-0 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Cari</button>
           </div>
-          <p id="geocode-msg" class="mt-1 text-xs text-slate-400"></p>
+          <p id="geocode-msg" aria-live="polite" class="mt-1 text-xs text-slate-500"></p>
         </div>
         <form hx-post="/api/submissions" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4">
           <input type="hidden" id="lat" name="lat" required />
           <input type="hidden" id="lon" name="lon" required />
-          ${field("name", "Nama bengkel", "", { placeholder: "Tambah Ban Jaya", required: true })}
-          ${field("address", "Alamat", "", { placeholder: "Jl. Contoh No. 1" })}
+          ${field("name", "Nama bengkel", "", { placeholder: "Tambah Ban Jaya", required: true, autocomplete: "organization" })}
+          ${field("address", "Alamat", "", { placeholder: "Jl. Contoh No. 1", autocomplete: "street-address" })}
           <div class="grid gap-4 sm:grid-cols-2">
-            ${field("city", "Kota / Kabupaten", "")}
-            ${field("province", "Provinsi", "")}
+            ${field("city", "Kota / Kabupaten", "", { autocomplete: "address-level2" })}
+            ${field("province", "Provinsi", "", { autocomplete: "address-level1" })}
             ${field("district", "Kecamatan", "")}
-            ${field("phone", "No. telepon", "")}
-            ${field("whatsapp", "WhatsApp", "", { hint: "Format 08xx (tanpa spasi)." })}
+            ${field("phone", "No. telepon", "", { autocomplete: "tel" })}
+            ${field("whatsapp", "WhatsApp", "", { hint: "Format 08xx (tanpa spasi).", autocomplete: "tel" })}
             ${field("opening_hours", "Jam buka", "", { placeholder: "07:00–21:00 / 24 jam" })}
           </div>
           <div>
@@ -194,7 +243,7 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
         </form>
       </div>
     </div>`;
-  return layout({ title: "Tambah bengkel", active: "submit", bodyClass: "flex min-h-screen flex-col", inlineScripts: [SUBMIT_MAP_JS] }, body);
+  return layout({ title: "Tambah bengkel", active: "submit", maps: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [SUBMIT_MAP_JS] }, body);
 }
 
 export function adminLoginPage(error?: string): string {
@@ -235,9 +284,9 @@ function submissionCard(row: UnverifiedSubmission, index: number): string {
       </div>
       <div class="flex gap-2">
         ${link}
-        <button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML"
+        <button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML" aria-label="Terbitkan ${esc(row.name)}"
           class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Terbitkan</button>
-        <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?"
+        <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?" aria-label="Hapus ${esc(row.name)}"
           class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
       </div>
     </div>
@@ -304,9 +353,9 @@ function adminDataRow(row: Workshop): string {
         ${link}
         ${row.verified
           ? ""
-          : `<button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML"
+          : `<button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML" aria-label="Terbitkan ${esc(row.name)}"
               class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Terbitkan</button>`}
-        <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?"
+        <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?" aria-label="Hapus ${esc(row.name)}"
           class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
       </div>
     </div>
