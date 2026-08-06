@@ -177,3 +177,64 @@ export async function removeSubmission(env: Env, id: string): Promise<void> {
   );
   if (!res.ok) throw new Error(`remove failed: ${res.status} ${await res.text()}`);
 }
+
+export interface AdminUser {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+}
+
+/** Admin: list auth users via the Auth admin API (service role). */
+export async function fetchAuthUsers(
+  env: Env,
+  opts: { search?: string; max?: number } = {},
+): Promise<{ users: AdminUser[]; total: number }> {
+  const max = opts.max ?? 200;
+  const perPage = 50;
+  const users: AdminUser[] = [];
+  let total = 0;
+  for (let page = 1; page <= 20; page++) {
+    const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+    if (opts.search) params.set("search", opts.search);
+    const res = await fetch(
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?${params.toString()}`,
+      { headers: bearer(env.SUPABASE_SERVICE_ROLE_KEY) },
+    );
+    if (!res.ok) throw new Error(`auth admin users failed: ${res.status} ${await res.text()}`);
+    const data = (await res.json()) as { users: AdminUser[]; total: number };
+    total = data.total ?? 0;
+    users.push(...data.users);
+    if (users.length >= total || users.length >= max) break;
+  }
+  return { users: users.slice(0, max), total };
+}
+
+export interface Review {
+  id: string;
+  workshop_id: string | null;
+  user_id: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  tambal_ban: { name: string } | null;
+}
+
+/** Admin: list reviews with embedded workshop names (service role bypasses RLS). */
+export async function fetchAllReviews(
+  env: Env,
+  opts: { rating?: number; limit?: number } = {},
+): Promise<Review[]> {
+  const params = new URLSearchParams();
+  params.set("select", "id,workshop_id,user_id,rating,comment,created_at,tambal_ban(name)");
+  params.set("order", "created_at.desc");
+  params.set("limit", String(opts.limit ?? 200));
+  if (opts.rating) params.set("rating", `eq.${opts.rating}`);
+  const res = await fetch(
+    `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/reviews?${params.toString()}`,
+    { headers: bearer(env.SUPABASE_SERVICE_ROLE_KEY) },
+  );
+  if (!res.ok) throw new Error(`reviews read failed: ${res.status} ${await res.text()}`);
+  return res.json() as Promise<Review[]>;
+}

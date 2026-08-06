@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { submissionSchema, loginSchema, bboxSchema, geocodeSchema } from "./validation";
+import {
+  submissionSchema,
+  loginSchema,
+  bboxSchema,
+  geocodeSchema,
+  adminDataQuerySchema,
+  adminUsersQuerySchema,
+  adminReviewsQuerySchema,
+} from "./validation";
 
 const validSubmission = {
   name: "Tambal Ban Jaya",
@@ -80,5 +88,46 @@ describe("bboxSchema", () => {
   });
   it("accepts partial bbox", () => {
     expect(bboxSchema.safeParse({ minLat: -6 }).success).toBe(true);
+  });
+});
+
+describe("adminDataQuerySchema", () => {
+  it("defaults limit to 100", () => {
+    const r = adminDataQuerySchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.limit).toBe(100);
+  });
+  it("rejects an out-of-range limit", () => {
+    expect(adminDataQuerySchema.safeParse({ limit: 1000 }).success).toBe(false);
+  });
+  it("rejects an unknown verified value", () => {
+    expect(adminDataQuerySchema.safeParse({ verified: "maybe" }).success).toBe(false);
+  });
+});
+
+describe("adminUsersQuerySchema", () => {
+  it("accepts a search term", () => {
+    const r = adminUsersQuerySchema.safeParse({ search: "john@example.com" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.search).toBe("john@example.com");
+  });
+  it("rejects an oversized search term", () => {
+    expect(adminUsersQuerySchema.safeParse({ search: "x".repeat(201) }).success).toBe(false);
+  });
+});
+
+describe("adminReviewsQuerySchema", () => {
+  it("defaults limit to 200", () => {
+    const r = adminReviewsQuerySchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.limit).toBe(200);
+  });
+  it("coerces a numeric rating string", () => {
+    const r = adminReviewsQuerySchema.safeParse({ rating: "4" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.rating).toBe(4);
+  });
+  it("rejects a rating out of 1..5", () => {
+    expect(adminReviewsQuerySchema.safeParse({ rating: 6 }).success).toBe(false);
   });
 });

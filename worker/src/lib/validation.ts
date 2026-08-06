@@ -75,6 +75,15 @@ export const adminDataQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional().default(100),
 });
 
+export const adminUsersQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+});
+
+export const adminReviewsQuerySchema = z.object({
+  rating: z.coerce.number().int().min(1).max(5).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(200),
+});
+
 export const bboxSchema = z
   .object({
     search: z.string().trim().max(200).optional(),

@@ -1,5 +1,5 @@
 import { esc, layout, errorToast, field, checkbox } from "./layout";
-import type { Workshop, UnverifiedSubmission } from "../lib/supabase";
+import type { Workshop, UnverifiedSubmission, AdminUser, Review } from "../lib/supabase";
 
 const SERVICE_LABELS: Array<[keyof Pick<Workshop, "motorcycle_tyres" | "car_tyres" | "truck_tyres" | "tubeless_repair" | "vulcanizer" | "balancing" | "spooring" | "roadside_service">, string]> = [
   ["motorcycle_tyres", "Ban motor"],
@@ -341,4 +341,105 @@ export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): strin
       <p class="text-xs text-slate-400">Menampilkan hingga 100 baris terbaru. Terbitkan menandai verified=true; Hapus menghapus baris dari database.</p>
     </div>`;
   return layout({ title: "Data admin", active: "data", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
+}
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+}
+
+export function adminUsersPage(users: AdminUser[], total: number, query: { search?: string }): string {
+  const rows = users.length
+    ? users
+        .map(
+          (u) => `<tr class="border-b border-slate-100 last:border-0">
+    <td class="px-3 py-2 align-top">
+      <div class="font-medium text-slate-900">${esc(u.email ?? "—")}</div>
+      <div class="text-xs text-slate-400">${esc(u.id)}</div>
+    </td>
+    <td class="px-3 py-2 align-top text-sm text-slate-600">${esc(u.phone ?? "—")}</td>
+    <td class="px-3 py-2 align-top text-sm text-slate-600">${fmtDate(u.created_at)}</td>
+    <td class="px-3 py-2 align-top text-sm text-slate-600">${u.last_sign_in_at ? fmtDate(u.last_sign_in_at) : "—"}</td>
+  </tr>`,
+        )
+        .join("")
+    : `<tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">Tidak ada pengguna yang cocok.</td></tr>`;
+  const body = `
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h1 class="text-lg font-semibold text-slate-900">Pengguna (${total})</h1>
+        <a href="/admin/users" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
+      </div>
+      <form method="get" action="/admin/users" class="flex flex-wrap items-center gap-2">
+        <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari email / telepon…"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none sm:w-64" />
+        <button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Cari</button>
+      </form>
+      <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+              <th class="px-3 py-2">Email</th>
+              <th class="px-3 py-2">Telepon</th>
+              <th class="px-3 py-2">Dibuat</th>
+              <th class="px-3 py-2">Masuk terakhir</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${total > users.length ? `<p class="text-xs text-slate-400">Menampilkan ${users.length} dari ${total} pengguna.</p>` : ""}
+    </div>`;
+  return layout({ title: "Pengguna", active: "users", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
+}
+
+export function adminReviewsPage(
+  reviews: Review[],
+  emails: Map<string, string>,
+  query: { rating?: number },
+): string {
+  const ratingOptions = [1, 2, 3, 4, 5]
+    .map(
+      (r) =>
+        `<option value="${r}" ${query.rating === r ? "selected" : ""}>${r} bintang${r > 1 ? "s" : ""}</option>`,
+    )
+    .join("");
+  const rows = reviews.length
+    ? reviews
+        .map((rv) => {
+          const email = rv.user_id ? emails.get(rv.user_id) : undefined;
+          const stars = "★".repeat(rv.rating) + "☆".repeat(5 - rv.rating);
+          return `<li class="rounded-xl border border-slate-200 bg-white p-4">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-amber-500">${stars}</span>
+          <span class="text-xs text-slate-400">${fmtDate(rv.created_at)}</span>
+        </div>
+        ${rv.comment ? `<p class="mt-1 text-sm text-slate-700">${esc(rv.comment)}</p>` : '<p class="mt-1 text-sm italic text-slate-400">Tanpa komentar</p>'}
+        <p class="mt-2 text-xs text-slate-500">
+          <span class="font-medium text-slate-700">${esc(rv.tambal_ban?.name ?? "Bengkel dihapus")}</span>
+          · ${email ? esc(email) : rv.user_id ? "pengguna (email tak terdaftar)" : "pengguna dihapus"}
+        </p>
+      </div>
+    </div>
+  </li>`;
+        })
+        .join("")
+    : `<li class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Belum ada ulasan yang cocok.</li>`;
+  const body = `
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h1 class="text-lg font-semibold text-slate-900">Ulasan (${reviews.length} baris termuat)</h1>
+        <a href="/admin/reviews" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
+      </div>
+      <form method="get" action="/admin/reviews" class="flex flex-wrap items-center gap-2">
+        <select name="rating" onchange="this.form.submit()"
+          class="rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-emerald-500 focus:outline-none">
+          <option value="">Semua rating</option>
+          ${ratingOptions}
+        </select>
+      </form>
+      <ul class="space-y-3">${rows}</ul>
+    </div>`;
+  return layout({ title: "Ulasan", active: "reviews", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
 }

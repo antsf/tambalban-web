@@ -14,6 +14,8 @@ import {
   adminLoginSchema,
   bboxSchema,
   adminDataQuerySchema,
+  adminUsersQuerySchema,
+  adminReviewsQuerySchema,
 } from "./lib/validation";
 import {
   homePage,
@@ -24,6 +26,8 @@ import {
   adminQueuePage,
   adminAllDataPage,
   adminDataList,
+  adminUsersPage,
+  adminReviewsPage,
 } from "./views/pages";
 import { errorToast, successToast } from "./views/layout";
 
@@ -68,6 +72,32 @@ app.get("/admin/data", async (c) => {
     return c.html(adminAllDataPage(rows, q));
   } catch {
     return c.html(errorToast("Gagal memuat data."), 500);
+  }
+});
+
+app.get("/admin/users", async (c) => {
+  if (!(await isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET))) return c.redirect("/admin/login");
+  const parsed = adminUsersQuerySchema.safeParse(c.req.query());
+  const q = parsed.success ? parsed.data : {};
+  try {
+    const { users, total } = await db.fetchAuthUsers(c.env, { search: q.search });
+    return c.html(adminUsersPage(users, total, q));
+  } catch {
+    return c.html(errorToast("Gagal memuat pengguna."), 500);
+  }
+});
+
+app.get("/admin/reviews", async (c) => {
+  if (!(await isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET))) return c.redirect("/admin/login");
+  const parsed = adminReviewsQuerySchema.safeParse(c.req.query());
+  const q = parsed.success ? parsed.data : { limit: 200 };
+  try {
+    const reviews = await db.fetchAllReviews(c.env, { rating: q.rating, limit: q.limit });
+    const { users } = await db.fetchAuthUsers(c.env);
+    const emails = new Map(users.map((u) => [u.id, u.email ?? ""]));
+    return c.html(adminReviewsPage(reviews, emails, q));
+  } catch {
+    return c.html(errorToast("Gagal memuat ulasan."), 500);
   }
 });
 

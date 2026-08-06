@@ -35,6 +35,8 @@ export function layout(opts: LayoutOptions, body: string): string {
           ${admin
             ? `<a href="/admin" class="rounded-lg px-3 py-1.5 ${active === "admin" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Antrian</a>
                <a href="/admin/data" class="rounded-lg px-3 py-1.5 ${active === "data" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Data</a>
+               <a href="/admin/users" class="rounded-lg px-3 py-1.5 ${active === "users" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Pengguna</a>
+               <a href="/admin/reviews" class="rounded-lg px-3 py-1.5 ${active === "reviews" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Ulasan</a>
                <a href="/api/admin/logout" class="rounded-lg px-3 py-1.5 hover:bg-slate-100">Keluar</a>`
             : `<a href="/login" class="rounded-lg px-3 py-1.5 hover:bg-slate-100">Masuk</a>`}
         </nav>
