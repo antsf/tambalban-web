@@ -1,11 +1,14 @@
-{
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tambalban-web",
-  "main": "src/index.ts",
-  "compatibility_date": "2024-12-01",
-  "assets": {
-    "directory": "./public",
-    "not_found_handling": "none"
-  },
-  "vars": {}
+﻿{
+    "main":  "src/index.ts",
+    "name":  "tambalban-web",
+    "compatibility_date":  "2024-12-01",
+    "assets":  {
+                   "not_found_handling":  "none",
+                   "directory":  "./public"
+               },
+    "vars":  {
+                 "NEXT_PUBLIC_SUPABASE_URL":  "https://xwqckmkjciptlbopmxjl.supabase.co",
+                 "NEXT_PUBLIC_SUPABASE_ANON_KEY":  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3cWNrbWtqY2lwdGxib3BteGpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzYwNjIsImV4cCI6MjA4OTExMjA2Mn0.7QW3DiL3YP_rGXQqhNctO6AVdKrVl5Yf6VZKrOCQPfo"
+             },
+    "$schema":  "node_modules/wrangler/config-schema.json"
 }
