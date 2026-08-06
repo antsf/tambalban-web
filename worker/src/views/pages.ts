@@ -101,7 +101,7 @@ export function loginPage(error?: string): string {
       <h1 class="mb-1 text-xl font-semibold">Masuk</h1>
       <p class="mb-6 text-sm text-slate-500">Akun yang sama berlaku di aplikasi Android maupun web.</p>
       ${err}
-      <form hx-post="/api/auth/login" hx-ext="json" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+      <form hx-post="/api/auth/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         ${field("email", "Email", "", { type: "email", placeholder: "nama@email.com", required: true })}
         ${field("password", "Password", "", { type: "password", required: true })}
         <button class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Masuk</button>
@@ -119,7 +119,7 @@ export function registerPage(error?: string): string {
       <h1 class="mb-1 text-xl font-semibold">Daftar akun</h1>
       <p class="mb-6 text-sm text-slate-500">Dipakai untuk melacak siapa yang menambah data.</p>
       ${err}
-      <form hx-post="/api/auth/register" hx-ext="json" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+      <form hx-post="/api/auth/register" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         ${field("email", "Email", "", { type: "email", placeholder: "nama@email.com", required: true })}
         ${field("password", "Password", "", { type: "password", required: true, hint: "Minimal 8 karakter." })}
         <button class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Daftar</button>
@@ -163,7 +163,7 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
           </div>
           <p id="geocode-msg" class="mt-1 text-xs text-slate-400"></p>
         </div>
-        <form hx-post="/api/submissions" hx-ext="json" hx-target="#toast" hx-swap="innerHTML" class="space-y-4">
+        <form hx-post="/api/submissions" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" class="space-y-4">
           <input type="hidden" id="lat" name="lat" required />
           <input type="hidden" id="lon" name="lon" required />
           ${field("name", "Nama bengkel", "", { placeholder: "Tambah Ban Jaya", required: true })}
@@ -194,7 +194,7 @@ export function adminLoginPage(error?: string): string {
       <h1 class="mb-1 text-xl font-semibold">Login admin</h1>
       <p class="mb-6 text-sm text-slate-500">Hanya untuk peninjau data.</p>
       ${err}
-      <form hx-post="/api/admin/login" hx-ext="json" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+      <form hx-post="/api/admin/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         ${field("password", "Password", "", { type: "password", required: true })}
         <button class="w-full rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Masuk</button>
       </form>
