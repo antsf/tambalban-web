@@ -16,7 +16,13 @@ function isInsideIndonesia(lat: number, lon: number): boolean {
   );
 }
 
-const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal("").transform(() => undefined));
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((v) => (v === "" ? undefined : v))
+    .optional();
 
 export const submissionSchema = z
   .object({
