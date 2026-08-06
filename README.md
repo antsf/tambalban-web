@@ -4,35 +4,38 @@ Data-collection website for the [TambalBan](https://github.com/antsf/tambalban) 
 crowdsourced map of tire repair shops (tambal ban) in Indonesia. Same Supabase project as the app;
 this site is just another front door onto the shared `tambal_ban` table.
 
-> **MID-REWRITE (2026-08).** This codebase is being rewritten from Next.js to a lightweight stack
-> (HTML/CSS/JS + HTMX + Hono, Cloudflare Workers) and pivoted to the real shared table
-> `tambal_ban`. The current Next.js code in `src/` still targets the retired
-> `workshops`/`workshop_submissions` design and does **not** work against the live DB — treat it as
-> deprecated scaffolding. `SPEC.md` describes the target state.
+> **MID-REWRITE (2026-08).** This codebase was rewritten from Next.js to a lightweight stack
+> (HTML/CSS/JS + HTMX + Hono) on **Cloudflare Workers**, on the real shared table `tambal_ban`.
+> The live implementation is in **`worker/`**. The old Next.js code in `src/` still targets the
+> retired `workshops`/`workshop_submissions` design, does **not** work against the live DB, and is
+> deprecated scaffolding — reference only, to be deleted once the rewrite is finished.
+> `SPEC.md` describes the target state and is accurate.
 
-## Target (the rewrite)
+## Features
 
-- Public map reading only `verified=true` rows from `tambal_ban` (Leaflet + OSM tiles).
-- Register/login via **Supabase Auth** — the same account store as the Android app.
-- Submit form (login required) inserting `source='user'`, `verified=false`; an admin flips
-  `verified=true` to publish.
-- Admin gate: shared `ADMIN_PASSWORD` + HMAC-signed cookie.
+- Public map reading only `verified=true` rows from `tambal_ban` (Leaflet + OSM tiles,
+  viewport-by-viewport fetch + name/city search).
+- Register/login via **Supabase Auth** — the same account store as the Android app. The access
+  token rides in an HttpOnly cookie (`tb_access_token`).
+- Submit form (login required, rate-limited) inserting `source='user'`, `verified=false`;
+  an admin flips `verified=true` to publish. Indonesia-bounds validated server-side (Zod).
+- Admin gate: shared `ADMIN_PASSWORD` + HMAC-signed cookie, scoped to `/admin/*`.
+- Nominatim geocoding proxied through `GET /api/geocode` (server sets `User-Agent`, rate-limits).
 - Details: [`SPEC.md`](./SPEC.md), philosophy: [`../soul.md`](../soul.md).
 
-## Current (deprecated) stack
+## Stack
 
-- Next.js 16 (App Router, Turbopack), TypeScript strict, Tailwind v4
-- Supabase (PostgreSQL) — reuses the Android app's project
-- Leaflet + OpenStreetMap tiles, Nominatim for geocoding (proxied via `/api/geocode`)
-- Zod for input validation
+- Hono on Cloudflare Workers (free 100k req/day), server-rendered HTML + HTMX 2 + vanilla JS.
+- Tailwind CSS v3 precompiled to `worker/public/tailwind.css` (no CDN at runtime).
+- Zod v4 validation; TypeScript strict.
 
 ## Setup
 
 ```bash
-npm install
+npm install --prefix worker
 ```
 
-Fill in `.env.local` (copy of `.env.local.example` pattern — create it):
+Fill in `worker/.dev.vars` for local dev (secrets, gitignored — generate from `../.env.local`):
 
 - `NEXT_PUBLIC_SUPABASE_URL` — Supabase dashboard → Settings → API → Project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — dashboard → Settings → API → anon key (public, RLS-scoped)
@@ -57,16 +60,34 @@ node scripts/scrape-osm-workshops.mjs            # dry-run
 node scripts/scrape-osm-workshops.mjs --apply    # insert into tambal_ban
 ```
 
+Run locally:
+
 ```bash
-npm run dev      # http://localhost:3000
-npm run build
-npm run lint
+cd worker
+npm run dev       # http://localhost:8787
+npm run build:css # recompile Tailwind (auto before deploy)
+npm run check     # tsc --noEmit
 ```
+
+Deploy:
+
+```bash
+cd worker
+wrangler secret put SUPABASE_SERVICE_ROLE_KEY   # once per secret
+wrangler secret put ADMIN_PASSWORD
+wrangler secret put ADMIN_SESSION_SECRET
+npm run deploy
+```
+
+> `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are not secrets — set them in the
+> Workers dashboard (Settings → Variables) or in `wrangler.jsonc` `vars`.
 
 ## Security notes
 
-- `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security — server-only, only in admin routes.
+- `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security — used only by `/api/admin/*` handlers,
+  each of which verifies the admin HMAC session first.
 - Public routes only ever read `verified=true` rows from `tambal_ban` — never unverified data.
-- Anonymous INSERT is blocked by RLS (`user_insert` requires an authenticated token); the web app
-  will send the logged-in user's token once Supabase Auth is wired in.
-- Indonesia bounds (`lat -11..6`, `lng 95..141`) enforced in `src/lib/validation.ts`.
+- Anonymous INSERT is blocked by RLS (`user_insert` requires an authenticated token); the submit
+  route sends the logged-in user's JWT as `Authorization: Bearer` (anon key only as `apikey`).
+- Indonesia bounds (`lat -11..6`, `lng 95..141`) enforced in `worker/src/lib/validation.ts`.
+- Submission & geocode endpoints are rate-limited per IP.
