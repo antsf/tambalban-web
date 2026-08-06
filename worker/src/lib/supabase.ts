@@ -273,8 +273,8 @@ export async function uploadImage(
   ext: string,
 ): Promise<string> {
   const id = crypto.randomUUID();
-  const path = `workshop-images/${id}.${ext}`;
-  const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${path}`, {
+  const path = `${id}.${ext}`;
+  const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/workshops/${path}`, {
     method: "POST",
     headers: {
       ...userHeaders(env.NEXT_PUBLIC_SUPABASE_ANON_KEY, userToken),
@@ -284,5 +284,5 @@ export async function uploadImage(
     body: file,
   });
   if (!res.ok) throw new Error(`upload failed: ${res.status} ${await res.text()}`);
-  return `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${path}`;
+  return `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/workshops/${path}`;
 }
