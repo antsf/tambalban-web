@@ -15,7 +15,7 @@ describe("session cookie", () => {
   it("signs a cookie that verifies", async () => {
     const cookie = await setSessionCookie(SECRET, true);
     expect(cookie).toContain("HttpOnly");
-    expect(cookie).toContain("Path=/admin");
+    expect(cookie).toContain("Path=/");
     expect(cookie).toContain("Secure");
     expect(getSessionCookie(cookie)).not.toBeNull();
     expect(await isAdmin(cookie, SECRET)).toBe(true);

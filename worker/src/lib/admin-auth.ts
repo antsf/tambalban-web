@@ -56,7 +56,7 @@ export async function setSessionCookie(secret: string, secure: boolean): Promise
   const sig = await sign(payload, secret);
   return [
     `${COOKIE_NAME}=${payload}.${sig}`,
-    `Path=/admin`,
+    `Path=/`,
     `HttpOnly`,
     `SameSite=Lax`,
     `Max-Age=${MAX_AGE_SECONDS}`,
@@ -85,7 +85,7 @@ export async function isAdmin(cookieHeader: string | null | undefined, secret: s
 }
 
 export function clearSessionCookie(): string {
-  return `${COOKIE_NAME}=; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=0`;
+  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 
 export async function validateAdminPassword(provided: string, expected: string): Promise<boolean> {
