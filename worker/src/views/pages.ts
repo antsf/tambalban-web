@@ -137,6 +137,18 @@ function loadCached(){
   const lat=document.getElementById('lat').value, lon=document.getElementById('lon').value;
   if(lat&&lon&&!marker){marker=L.marker([lat,lon]).addTo(map);map.setView([lat,lon],15);}
 }
+async function uploadPhoto(input){
+  const file=input.files[0];if(!file)return;
+  const status=document.getElementById('photo-status');
+  status.textContent='Mengupload…';status.className='mt-1 text-xs text-slate-500';
+  const fd=new FormData();fd.append('file',file);
+  try{
+    const res=await fetch('/api/upload',{method:'POST',body:fd});
+    const data=await res.json();
+    if(data.url){document.getElementById('image_url').value=data.url;status.textContent='Foto terupload ✓';status.className='mt-1 text-xs text-emerald-600';}
+    else{status.textContent=data.error||'Gagal upload.';status.className='mt-1 text-xs text-red-600';input.value='';}
+  }catch(e){status.textContent='Gagal upload.';status.className='mt-1 text-xs text-red-600';input.value='';}
+}
 `;
 
 export function homePage(): string {
@@ -233,6 +245,7 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
         <form hx-post="/api/submissions" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4">
           <input type="hidden" id="lat" name="lat" required />
           <input type="hidden" id="lon" name="lon" required />
+          <input type="hidden" id="image_url" name="image_url" />
           ${field("name", "Nama bengkel", "", { placeholder: "Tambah Ban Jaya", required: true, autocomplete: "organization" })}
           ${field("address", "Alamat", "", { placeholder: "Jl. Contoh No. 1", autocomplete: "street-address" })}
           <div class="grid gap-4 sm:grid-cols-2">
@@ -246,6 +259,12 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
           <div>
             <p class="mb-2 text-sm font-medium text-slate-700">Layanan tersedia</p>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">${services}</div>
+          </div>
+          <div>
+            <label for="photo" class="mb-1 block text-sm font-medium text-slate-700">Foto bengkel (opsional)</label>
+            <input id="photo" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadPhoto(this)"
+              class="w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200" />
+            <p id="photo-status" class="mt-1 text-xs text-slate-500"></p>
           </div>
           <button class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Kirim untuk ditinjau</button>
         </form>
@@ -269,7 +288,7 @@ export function adminLoginPage(error?: string): string {
   return layout({ title: "Login admin", active: "", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
-function submissionCard(row: UnverifiedSubmission, index: number): string {
+function submissionCard(row: UnverifiedSubmission, _index: number): string {
   const link = row.lat != null && row.lon != null
     ? `<a class="text-emerald-600 hover:underline" target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${row.lat}&mlon=${row.lon}#map=17/${row.lat}/${row.lon}">Lihat di peta</a>`
     : "";
@@ -282,24 +301,56 @@ function submissionCard(row: UnverifiedSubmission, index: number): string {
   ]
     .filter(Boolean)
     .join(" · ");
-  return `<li class="rounded-xl border border-slate-200 bg-white p-4">
-    <div class="flex flex-wrap items-start justify-between gap-2">
-      <div>
-        <h3 class="font-semibold text-slate-900">${esc(row.name)}</h3>
-        ${meta ? `<p class="mt-1 text-sm text-slate-500">${meta}</p>` : ""}
-        ${row.address ? `<p class="mt-1 text-sm text-slate-500">${esc(row.address)}</p>` : ""}
-        <p class="mt-1 text-xs text-slate-400">Dikirim ${esc(row.created_at)}${row.user_id ? ` · user ${esc(row.user_id.slice(0, 8))}` : ""}</p>
-      </div>
-      <div class="flex gap-2">
-        ${link}
-        <button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML" aria-label="Terbitkan ${esc(row.name)}"
-          class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Terbitkan</button>
-        <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?" aria-label="Hapus ${esc(row.name)}"
-          class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
+  return `<li data-id="${esc(row.id)}" class="rounded-xl border border-slate-200 bg-white p-4">
+    <div class="flex items-start gap-3">
+      <input type="checkbox" class="q-cb mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-100" data-id="${esc(row.id)}" onchange="updateBulkBar()" aria-label="Pilih ${esc(row.name)}" />
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="min-w-0">
+            <h3 class="font-semibold text-slate-900">${esc(row.name)}</h3>
+            ${meta ? `<p class="mt-1 text-sm text-slate-500">${meta}</p>` : ""}
+            ${row.address ? `<p class="mt-1 text-sm text-slate-500">${esc(row.address)}</p>` : ""}
+            <p class="mt-1 text-xs text-slate-400">Dikirim ${esc(row.created_at)}${row.user_id ? ` · user ${esc(row.user_id.slice(0, 8))}` : ""}</p>
+          </div>
+          <div class="flex gap-2">
+            ${link}
+            <button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML" aria-label="Terbitkan ${esc(row.name)}"
+              class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Terbitkan</button>
+            <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?" aria-label="Hapus ${esc(row.name)}"
+              class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
+          </div>
+        </div>
       </div>
     </div>
   </li>`;
 }
+
+const BULK_ACTIONS_JS = `
+function selIds(){return Array.from(document.querySelectorAll('.q-cb:checked')).map(c=>c.dataset.id);}
+function updateBulkBar(){
+  const ids=selIds(), bar=document.getElementById('bulk-bar'), cnt=document.getElementById('bulk-count');
+  if(ids.length){bar.classList.remove('hidden');cnt.textContent=ids.length+' dipilih';}
+  else bar.classList.add('hidden');
+}
+function toggleAll(cb){document.querySelectorAll('.q-cb').forEach(c=>{c.checked=cb.checked;});updateBulkBar();}
+async function bulkPublish(){
+  const ids=selIds();if(!ids.length)return;
+  try{
+    await fetch('/api/admin/bulk/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+    ids.forEach(id=>{const li=document.querySelector('[data-id="'+id+'"]');if(li)li.remove();});
+    updateBulkBar();document.getElementById('toast').innerHTML='<div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">'+ids.length+' kiriman diterbitkan.</div>';
+  }catch(e){document.getElementById('toast').innerHTML='<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Gagal menerbitkan.</div>';}
+}
+async function bulkRemove(){
+  const ids=selIds();if(!ids.length)return;
+  if(!confirm('Hapus '+ids.length+' kiriman?'))return;
+  try{
+    await fetch('/api/admin/bulk/remove',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+    ids.forEach(id=>{const li=document.querySelector('[data-id="'+id+'"]');if(li)li.remove();});
+    updateBulkBar();document.getElementById('toast').innerHTML='<div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">'+ids.length+' kiriman dihapus.</div>';
+  }catch(e){document.getElementById('toast').innerHTML='<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Gagal menghapus.</div>';}
+}
+`;
 
 export function adminQueueEmpty(): string {
   return `<li class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Tidak ada kiriman menunggu. Semua sudah diterbitkan.</li>`;
@@ -312,9 +363,19 @@ export function adminQueuePage(rows: UnverifiedSubmission[]): string {
       <h1 class="text-lg font-semibold text-slate-900">Antrian kiriman (${rows.length})</h1>
       <a href="/admin" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
     </div>
-    <ul id="queue" class="mt-4 space-y-3">${list}</ul>
+    <div id="bulk-bar" class="hidden mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+      <span id="bulk-count" class="text-sm font-medium text-emerald-700"></span>
+      <button onclick="bulkPublish()" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Terbitkan terpilih</button>
+      <button onclick="bulkRemove()" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus terpilih</button>
+      <button onclick="document.querySelectorAll('.q-cb').forEach(c=>{c.checked=false;});updateBulkBar()" class="text-xs text-slate-500 hover:underline">Batal</button>
+    </div>
+    <div class="mt-3 flex items-center gap-2 text-sm text-slate-600">
+      <input type="checkbox" onchange="toggleAll(this)" class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-100" aria-label="Pilih semua" />
+      <span>Pilih semua</span>
+    </div>
+    <ul id="queue" class="mt-2 space-y-3">${list}</ul>
     <p class="mt-6 text-xs text-slate-400">Menerbitkan menandai verified=true dan menguncinya. Menghapus menghapus baris dari database.</p>`;
-  return layout({ title: "Antrian admin", active: "admin", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
+  return layout({ title: "Antrian admin", active: "admin", admin: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [BULK_ACTIONS_JS] }, body);
 }
 
 export interface AdminDataQuery {
@@ -377,33 +438,55 @@ export function adminDataList(rows: Workshop[]): string {
   return rows.map(adminDataRow).join("");
 }
 
+const ADMIN_DATA_INFINITE_JS = `
+let _offset=0,_busy=false;
+function loadMore(){
+  if(_busy)return;_busy=true;
+  const btn=document.getElementById('load-more');
+  const p=new URLSearchParams(window.location.search);
+  _offset+=20;p.set('offset',_offset);
+  fetch('/api/admin/workshops?'+p).then(r=>r.text()).then(html=>{
+    if(!html.trim()){btn.remove();_busy=false;return;}
+    document.getElementById('data-list').insertAdjacentHTML('beforeend',html);
+    const next=_offset+20;
+    if(html.split('<li').length-1<20)btn.remove();
+    _busy=false;
+  }).catch(()=>{_busy=false;});
+}
+function resetOffset(){_offset=0;}
+`;
+
 export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): string {
   const sel = (name: string, value: string | undefined, options: Array<[string, string]>, label: string) =>
-    `<select name="${name}" aria-label="${label}" hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" hx-trigger="change"
-        hx-include="closest form" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+    `<select name="${name}" aria-label="${label}" hx-get="/api/admin/workshops" hx-target="#data-wrap" hx-swap="innerHTML" hx-trigger="change"
+        hx-include="closest form" onchange="resetOffset()" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
       <option value="">${esc(options[0][1])}</option>
       ${options
         .slice(1)
         .map(([v, label]) => `<option value="${v}" ${value === v ? "selected" : ""}>${esc(label)}</option>`)
         .join("")}
     </select>`;
+  const hasMore = rows.length >= 20;
   const body = `
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h1 class="text-lg font-semibold text-slate-900">Semua data (${rows.length} baris termuat)</h1>
+        <h1 class="text-lg font-semibold text-slate-900">Semua data</h1>
         <a href="/admin/data" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
       </div>
-      <form hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" class="flex flex-wrap items-center gap-2">
+      <form hx-get="/api/admin/workshops" hx-target="#data-wrap" hx-swap="innerHTML" class="flex flex-wrap items-center gap-2">
         <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari nama / alamat / kota…" aria-label="Cari nama, alamat, atau kota"
           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-64" />
         ${sel("verified", query.verified, [["", "Semua status"], ["false", "Belum terverifikasi"], ["true", "Terverifikasi"]], "Filter status")}
         ${sel("source", query.source, [["", "Semua sumber"], ["user", "Pengguna"], ["osm", "OSM"]], "Filter sumber")}
         <button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Terapkan</button>
       </form>
-      <ul id="data-list" class="space-y-3">${adminDataList(rows)}</ul>
-      <p class="text-xs text-slate-400">Menampilkan hingga 100 baris terbaru. Terbitkan menandai verified=true; Hapus menghapus baris dari database.</p>
+      <div id="data-wrap">
+        <ul id="data-list" class="space-y-3">${adminDataList(rows)}</ul>
+        ${hasMore ? `<button id="load-more" onclick="loadMore()" class="mt-4 w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Muat lebih banyak</button>` : ""}
+      </div>
+      <p class="text-xs text-slate-400">Terbitkan menandai verified=true; Hapus menghapus baris dari database.</p>
     </div>`;
-  return layout({ title: "Data admin", active: "data", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
+  return layout({ title: "Data admin", active: "data", admin: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [ADMIN_DATA_INFINITE_JS] }, body);
 }
 
 function fmtDate(iso: string): string {

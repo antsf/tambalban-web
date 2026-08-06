@@ -64,7 +64,7 @@ app.get("/admin", async (c) => {
 app.get("/admin/data", async (c) => {
   if (!(await isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET))) return c.redirect("/admin/login");
   const parsed = adminDataQuerySchema.safeParse(c.req.query());
-  const q: z.infer<typeof adminDataQuerySchema> = parsed.success ? parsed.data : { limit: 100 };
+  const q: z.infer<typeof adminDataQuerySchema> = parsed.success ? parsed.data : { limit: 100, offset: 0 };
   try {
     const rows = await db.fetchAllWorkshops(c.env, {
       search: q.search,
@@ -219,6 +219,32 @@ app.get("/api/auth/logout", (c) => {
   return c.redirect("/");
 });
 
+// ---------- image upload ----------
+
+app.post("/api/upload", async (c) => {
+  const ip = clientIp(c.req.raw);
+  if (!rateLimit(`upl:${ip}`, 10)) return c.json({ error: "Terlalu banyak permintaan" }, 429);
+  const token = getUserToken(c.req.header("Cookie"));
+  if (!token) return c.json({ error: "Harus masuk" }, 401);
+  const ct = c.req.header("Content-Type") ?? "";
+  if (!ct.includes("multipart/form-data")) return c.json({ error: "Invalid content type" }, 400);
+  const formData = await c.req.formData();
+  const raw = formData.get("file");
+  if (!raw || typeof raw === "string") return c.json({ error: "No file" }, 400);
+  const file = raw as { type: string; size: number; arrayBuffer(): Promise<ArrayBuffer> };
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowed.includes(file.type)) return c.json({ error: "Format tidak didukung. Gunakan JPG, PNG, atau WebP." }, 400);
+  if (file.size > 5 * 1024 * 1024) return c.json({ error: "Ukuran maksimal 5MB." }, 400);
+  const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
+  try {
+    const buf = await file.arrayBuffer();
+    const url = await db.uploadImage(c.env, token, buf, file.type, ext);
+    return c.json({ url });
+  } catch (e) {
+    return c.json({ error: `Gagal upload: ${e instanceof Error ? e.message : ""}` }, 500);
+  }
+});
+
 // ---------- submissions ----------
 
 app.post("/api/submissions", async (c) => {
@@ -318,6 +344,7 @@ app.get("/api/admin/workshops", async (c) => {
       verified: parsed.data.verified === "true" ? true : parsed.data.verified === "false" ? false : undefined,
       source: parsed.data.source,
       limit: parsed.data.limit,
+      offset: parsed.data.offset,
     });
     return c.html(adminDataList(rows));
   } catch {
@@ -342,6 +369,36 @@ app.post("/api/admin/submissions/:id/remove", async (c) => {
   try {
     await db.removeSubmission(c.env, id);
     return c.html("");
+  } catch {
+    return c.html(errorToast("Gagal menghapus."), 502);
+  }
+});
+
+// ---------- bulk admin ----------
+
+app.post("/api/admin/bulk/publish", async (c) => {
+  if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
+  let body: Record<string, unknown>;
+  try { body = await c.req.json(); } catch { return c.json({ error: "Invalid" }, 400); }
+  const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  if (!ids.length) return c.json({ error: "No IDs" }, 400);
+  try {
+    await db.bulkPublish(c.env, ids);
+    return c.html(successToast(`${ids.length} kiriman diterbitkan.`));
+  } catch {
+    return c.html(errorToast("Gagal menerbitkan."), 502);
+  }
+});
+
+app.post("/api/admin/bulk/remove", async (c) => {
+  if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
+  let body: Record<string, unknown>;
+  try { body = await c.req.json(); } catch { return c.json({ error: "Invalid" }, 400); }
+  const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  if (!ids.length) return c.json({ error: "No IDs" }, 400);
+  try {
+    await db.bulkRemove(c.env, ids);
+    return c.html(successToast(`${ids.length} kiriman dihapus.`));
   } catch {
     return c.html(errorToast("Gagal menghapus."), 502);
   }

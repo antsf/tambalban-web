@@ -137,12 +137,13 @@ export async function fetchUnverifiedSubmissions(env: Env): Promise<UnverifiedSu
 /** Admin: list every row in tambal_ban (service role bypasses RLS). */
 export async function fetchAllWorkshops(
   env: Env,
-  opts: { search?: string; verified?: boolean; source?: string; limit?: number } = {},
+  opts: { search?: string; verified?: boolean; source?: string; limit?: number; offset?: number } = {},
 ): Promise<Workshop[]> {
   const params = new URLSearchParams();
   params.set("select", WORKSHOP_SELECT);
   params.set("order", "created_at.desc");
   params.set("limit", String(opts.limit ?? 100));
+  if (opts.offset) params.set("offset", String(opts.offset));
   if (opts.search) {
     params.set("or", `(name.ilike.*${opts.search}*,address.ilike.*${opts.search}*,city.ilike.*${opts.search}*)`);
   }
@@ -176,6 +177,30 @@ export async function removeSubmission(env: Env, id: string): Promise<void> {
     { method: "DELETE", headers: bearer(env.SUPABASE_SERVICE_ROLE_KEY) },
   );
   if (!res.ok) throw new Error(`remove failed: ${res.status} ${await res.text()}`);
+}
+
+/** Admin: bulk publish — flip verified=true for multiple IDs. */
+export async function bulkPublish(env: Env, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const res = await fetch(
+    `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/tambal_ban?id=in.(${ids.join(",")})`,
+    {
+      method: "PATCH",
+      headers: bearer(env.SUPABASE_SERVICE_ROLE_KEY),
+      body: JSON.stringify({ verified: true, verified_at: new Date().toISOString() }),
+    },
+  );
+  if (!res.ok) throw new Error(`bulk publish failed: ${res.status} ${await res.text()}`);
+}
+
+/** Admin: bulk remove — delete multiple rows by ID. */
+export async function bulkRemove(env: Env, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const res = await fetch(
+    `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/tambal_ban?id=in.(${ids.join(",")})`,
+    { method: "DELETE", headers: bearer(env.SUPABASE_SERVICE_ROLE_KEY) },
+  );
+  if (!res.ok) throw new Error(`bulk remove failed: ${res.status} ${await res.text()}`);
 }
 
 export interface AdminUser {
@@ -237,4 +262,27 @@ export async function fetchAllReviews(
   );
   if (!res.ok) throw new Error(`reviews read failed: ${res.status} ${await res.text()}`);
   return res.json() as Promise<Review[]>;
+}
+
+/** Upload an image to Supabase Storage and return the public URL. */
+export async function uploadImage(
+  env: Env,
+  userToken: string,
+  file: ArrayBuffer,
+  contentType: string,
+  ext: string,
+): Promise<string> {
+  const id = crypto.randomUUID();
+  const path = `workshop-images/${id}.${ext}`;
+  const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${path}`, {
+    method: "POST",
+    headers: {
+      ...userHeaders(env.NEXT_PUBLIC_SUPABASE_ANON_KEY, userToken),
+      "Content-Type": contentType,
+      "x-upsert": "true",
+    },
+    body: file,
+  });
+  if (!res.ok) throw new Error(`upload failed: ${res.status} ${await res.text()}`);
+  return `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${path}`;
 }
