@@ -214,6 +214,11 @@ app.post("/api/auth/logout", (c) => {
   return c.body(null);
 });
 
+app.get("/api/auth/logout", (c) => {
+  c.header("Set-Cookie", clearUserTokenCookie());
+  return c.redirect("/");
+});
+
 // ---------- submissions ----------
 
 app.post("/api/submissions", async (c) => {

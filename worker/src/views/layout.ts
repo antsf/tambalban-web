@@ -12,6 +12,7 @@ interface LayoutOptions {
   title: string;
   active: string;
   admin?: boolean;
+  user?: string;
   bodyClass?: string;
   scripts?: string[];
   inlineScripts?: string[];
@@ -26,9 +27,30 @@ const DEFAULT_DESCRIPTION =
   "Peta bengkel tambal ban terverifikasi di Indonesia. Cari tambalan ban terdekat dan kirim lokasi bengkel baru.";
 
 export function layout(opts: LayoutOptions, body: string): string {
-  const { title, active, admin = false, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION } = opts;
+  const { title, active, admin = false, user, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION } = opts;
   const cdn = (src: string) => `<script src="${src}"></script>`;
   const inline = (code: string) => `<script>${code}</script>`;
+
+  const navLink = (href: string, label: string, key: string, extraClass = "") =>
+    `<a href="${href}" class="rounded-lg px-3 py-1.5 ${active === key ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"} ${extraClass}">${label}</a>`;
+
+  const publicLinks = `${navLink("/", "Peta", "home")}${navLink("/submit", "Tambah", "submit")}`;
+
+  let authLinks: string;
+  if (admin) {
+    authLinks =
+      `<span class="hidden sm:inline sm:w-px sm:self-stretch sm:bg-slate-200"></span>` +
+      navLink("/admin", "Antrian", "admin") +
+      navLink("/admin/data", "Data", "data") +
+      navLink("/admin/users", "Pengguna", "users") +
+      navLink("/admin/reviews", "Ulasan", "reviews") +
+      `<a href="/api/admin/logout" class="rounded-lg px-3 py-1.5 text-red-600 hover:bg-red-50">Keluar</a>`;
+  } else if (user) {
+    authLinks = `<a href="/api/auth/logout" class="rounded-lg px-3 py-1.5 text-red-600 hover:bg-red-50">Keluar</a>`;
+  } else {
+    authLinks = navLink("/login", "Masuk", "login");
+  }
+
   const header = `
     <header class="sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -36,18 +58,19 @@ export function layout(opts: LayoutOptions, body: string): string {
           <span class="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 text-white">🛞</span>
           TambalBan
         </a>
-        <nav class="flex items-center gap-1 text-sm font-medium text-slate-600">
-          <a href="/" class="rounded-lg px-3 py-1.5 ${active === "home" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Peta</a>
-          <a href="/submit" class="rounded-lg px-3 py-1.5 ${active === "submit" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Tambah</a>
-          ${admin
-            ? `<a href="/admin" class="rounded-lg px-3 py-1.5 ${active === "admin" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Antrian</a>
-               <a href="/admin/data" class="rounded-lg px-3 py-1.5 ${active === "data" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Data</a>
-               <a href="/admin/users" class="rounded-lg px-3 py-1.5 ${active === "users" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Pengguna</a>
-               <a href="/admin/reviews" class="rounded-lg px-3 py-1.5 ${active === "reviews" ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"}">Ulasan</a>
-               <a href="/api/admin/logout" class="rounded-lg px-3 py-1.5 hover:bg-slate-100">Keluar</a>`
-            : `<a href="/login" class="rounded-lg px-3 py-1.5 hover:bg-slate-100">Masuk</a>`}
+        <nav id="nav-desktop" class="hidden items-center gap-1 text-sm font-medium text-slate-600 sm:flex">
+          ${publicLinks}${authLinks}
         </nav>
+        <button id="nav-toggle" type="button" onclick="document.getElementById('nav-mobile').classList.toggle('hidden')" aria-label="Buka menu navigasi"
+          class="sm:hidden rounded-lg p-1.5 text-slate-600 hover:bg-slate-100">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
       </div>
+      <nav id="nav-mobile" class="hidden border-t border-slate-200 bg-white px-4 py-2 sm:hidden">
+        <div class="flex flex-col gap-1 text-sm font-medium text-slate-600">
+          ${publicLinks}${authLinks}
+        </div>
+      </nav>
     </header>`;
 
 const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4 py-6">${body}</main>`;

@@ -251,7 +251,7 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
         </form>
       </div>
     </div>`;
-  return layout({ title: "Tambah bengkel", active: "submit", maps: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [SUBMIT_MAP_JS] }, body);
+  return layout({ title: "Tambah bengkel", active: "submit", user: loggedInEmail ?? undefined, maps: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [SUBMIT_MAP_JS] }, body);
 }
 
 export function adminLoginPage(error?: string): string {
