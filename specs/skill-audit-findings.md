@@ -1,13 +1,12 @@
 # Skill Audit Findings — TambalBan Web (2026-08-06)
 
-All 19 skills in `.claude/skills/` were run against the live `worker/` stack. Below is every
+All 19 skills in `.claude/skills/` were run against the live `worker/stack`. Below is every
 finding, grouped by skill, with its status and the commit that fixed it.
 
 **Status key:**
-- ✅ Fixed — shipped in commit `760c489`
+- ✅ Fixed — shipped in commit `760c489` or `afcc97d`
 - ⏭️ Audit-only — skill confirmed compliance, no fix needed
-- ⏳ Deferred — not addressed (reason noted)
-- 🔴 Blocked — requires upstream change
+- ⏳ Deferred — requires infrastructure change (Cloudflare config, CI pipeline)
 
 ---
 
@@ -209,17 +208,19 @@ finding, grouped by skill, with its status and the commit that fixed it.
 
 ## Deferred / Not Addressed
 
-| Item | Reason |
-|------|--------|
-| HTMX + Leaflet render-blocking on non-map pages | Conditional loading via `maps` flag already implemented; further optimization (async/defer) would need testing |
-| `useMyLocation` geolocation outside Indonesia bounds | Server Zod validation already rejects; client-side bounds check would be nice-to-have but not critical |
-| Sitemap.xml generation | robots.txt references it but no generator exists yet — low priority for MVP |
-| CSP headers | Would need Cloudflare Workers config change; defer to deployment phase |
-| Lighthouse CI | No CI pipeline configured yet; defer to deployment phase |
+| Item | Status | Commit |
+|------|--------|--------|
+| HTMX + Leaflet render-blocking on non-map pages | ✅ Fixed | `760c489` — conditional loading via `maps` flag |
+| `useMyLocation` geolocation outside Indonesia bounds | ✅ Fixed | `afcc97d` — client-side bounds check added |
+| Sitemap.xml generation | ✅ Fixed | `afcc97d` — `/sitemap.xml` route returns XML |
+| CSP headers | ⏳ Deferred | Needs Cloudflare Workers config change; defer to deployment phase |
+| Lighthouse CI | ⏳ Deferred | No CI pipeline configured yet; defer to deployment phase |
 
 ---
 
-## Files Modified (commit `760c489`)
+## Files Modified
+
+### Commit `760c489` — a11y + UX polish
 
 | File | Changes |
 |------|---------|
@@ -227,3 +228,11 @@ finding, grouped by skill, with its status and the commit that fixed it.
 | `worker/src/views/pages.ts` | `MAP_JS` rewritten (non-map list, focusMarker, error state); `SUBMIT_MAP_JS` updated (geolocation); home/submit/admin pages updated (maps flag, aria-live, contrast, aria-labels, autocomplete) |
 | `worker/public/robots.txt` | New file: disallow `/admin`, `/login`, `/register` |
 | `worker/public/tailwind.css` | Rebuilt to pick up new Tailwind classes |
+
+### Commit `afcc97d` — spec + deferred fixes
+
+| File | Changes |
+|------|---------|
+| `specs/skill-audit-findings.md` | New file: full audit of all 19 skills with findings and statuses |
+| `worker/src/views/pages.ts` | Indonesia bounds check on geolocation + geocode results |
+| `worker/src/routes.ts` | New `/sitemap.xml` route (XML, 4 static URLs) |

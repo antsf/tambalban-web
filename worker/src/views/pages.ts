@@ -97,6 +97,10 @@ async function geocode(){
     const rows=await (await fetch('/api/geocode?'+p)).json();
     if(!rows.length){document.getElementById('geocode-msg').textContent='Tidak ditemukan.';return;}
     const r=rows[0];
+    if(r.lat<-11||r.lat>6||r.lon<95||r.lon>141){
+      document.getElementById('geocode-msg').textContent='Hasil di luar Indonesia. Coba kata kunci yang lebih spesifik.';
+      return;
+    }
     if(marker) map.removeLayer(marker);
     marker=L.marker([r.lat,r.lon]).addTo(map);
     map.setView([r.lat,r.lon],16);
@@ -113,6 +117,10 @@ function useMyLocation(){
   navigator.geolocation.getCurrentPosition(
     function(pos){
       const lat=pos.coords.latitude, lon=pos.coords.longitude;
+      if(lat<-11||lat>6||lon<95||lon>141){
+        msg.textContent='Lokasi Anda di luar Indonesia. Silakan cari alamat atau klik peta.';
+        return;
+      }
       if(marker) map.removeLayer(marker);
       marker=L.marker([lat,lon]).addTo(map);
       map.setView([lat,lon],15);
