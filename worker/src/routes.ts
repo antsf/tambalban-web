@@ -7,6 +7,7 @@ import * as sauth from "./lib/supabase-auth";
 import { getUserToken, userEmailFromToken, userTokenCookie, clearUserTokenCookie } from "./lib/user-auth";
 import { isAdmin, setSessionCookie, clearSessionCookie, validateAdminPassword } from "./lib/admin-auth";
 import { rateLimit, clientIp } from "./lib/rate-limit";
+import { securityHeaders } from "./lib/security";
 import {
   submissionSchema,
   loginSchema,
@@ -32,6 +33,8 @@ import {
 import { errorToast, successToast } from "./views/layout";
 
 export const app = new Hono<{ Bindings: Env }>();
+
+app.use("*", securityHeaders);
 
 const isSecure = (url: string): boolean => url.startsWith("https://");
 
