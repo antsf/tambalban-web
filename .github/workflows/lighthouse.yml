@@ -22,7 +22,7 @@ jobs:
 
       - name: Build CSS
         working-directory: worker
-        run: npm ci && npm run build:css
+        run: npm install && npm run build:css
 
       - name: Start local server
         run: |
