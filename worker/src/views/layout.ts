@@ -23,7 +23,7 @@ export function layout(opts: LayoutOptions, body: string): string {
   const cdn = (src: string) => `<script src="${src}"></script>`;
   const inline = (code: string) => `<script>${code}</script>`;
   const header = `
-    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <a href="/" class="flex items-center gap-2 font-semibold text-slate-900">
           <span class="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 text-white">🛞</span>

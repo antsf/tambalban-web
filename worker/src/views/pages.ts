@@ -14,12 +14,18 @@ const SERVICE_LABELS: Array<[keyof Pick<Workshop, "motorcycle_tyres" | "car_tyre
 
 const MAP_JS = `
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const svcLabel={'motorcycle_tyres':'Ban motor','car_tyres':'Ban mobil','truck_tyres':'Ban truk','tubeless_repair':'Tambal tubeless','vulcanizer':'Vulkanisir','balancing':'Balancing','spooring':'Spooring','roadside_service':'Servis panggilan'};
 function popup(w){
-  const lines=[w.name];
-  if(w.address||w.city) lines.push(esc(w.address||'')+esc(w.city?', '+w.city:''));
-  if(w.whatsapp) lines.push('<a href="https://wa.me/'+esc(w.whatsapp.replace(/[^0-9]/g,''))+'">WhatsApp: '+esc(w.whatsapp)+'</a>');
-  else if(w.phone) lines.push('Telp: '+esc(w.phone));
-  return lines.join('<br>');
+  const h=['<div class="min-w-52 text-sm">'];
+  h.push('<div class="font-semibold text-slate-900">'+esc(w.name)+'</div>');
+  if(w.address||w.city) h.push('<div class="text-slate-600">'+esc(w.address||'')+esc(w.city?', '+w.city:'')+'</div>');
+  if(w.opening_hours) h.push('<div class="mt-1 text-slate-500">Jam: '+esc(w.opening_hours)+'</div>');
+  const svc=Object.keys(svcLabel).filter(k=>w[k]).map(k=>svcLabel[k]);
+  if(svc.length) h.push('<div class="mt-1 text-xs text-slate-500">'+esc(svc.join(', '))+'</div>');
+  if(w.whatsapp) h.push('<a class="mt-2 block rounded-lg bg-emerald-600 px-4 py-2 text-center font-medium text-white hover:bg-emerald-700" href="https://wa.me/'+esc(w.whatsapp.replace(/[^0-9]/g,''))+'">WhatsApp</a>');
+  if(w.phone) h.push('<a class="mt-2 block rounded-lg border border-slate-300 px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-50" href="tel:'+esc(w.phone)+'">Telepon</a>');
+  h.push('</div>');
+  return h.join('');
 }
 const map=L.map('map').setView([-2.5,118],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
@@ -34,7 +40,8 @@ async function load(){
     const rows=await (await fetch('/api/workshops?'+p)).json();
     layer.clearLayers();
     for(const w of rows) L.marker([w.lat,w.lon]).addTo(layer).bindPopup(popup(w));
-    document.getElementById('count').textContent=rows.length+' tampil';
+    document.getElementById('count').textContent=rows.length+' bengkel di layar';
+    document.getElementById('map-hint').textContent=rows.length?'':'Belum ada bengkel di area ini. Geser peta atau cari nama/kota.';
   }catch(e){}
 }
 function requestLoad(){clearTimeout(deb);deb=setTimeout(load,350);}
@@ -83,15 +90,18 @@ export function homePage(): string {
   const body = `
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-lg font-semibold text-slate-900">Peta bengkel tambal ban</h1>
+        <div>
+          <h1 class="text-lg font-semibold text-slate-900">Peta bengkel tambal ban</h1>
+          <p class="text-sm text-slate-500">Cari bengkel terdekat dan hubungi langsung lewat tombol di popup.</p>
+        </div>
         <span id="count" class="text-sm text-slate-400">memuat…</span>
-        <input id="q" type="search" placeholder="Cari nama / kota…" oninput="requestLoad()"
-          class="ml-auto w-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:w-64 focus:border-emerald-500 focus:outline-none" />
+        <input id="q" type="search" placeholder="Cari nama / kota…" aria-label="Cari bengkel berdasarkan nama atau kota" oninput="requestLoad()"
+          class="ml-auto w-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:w-64 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
       </div>
-      <div id="map" class="h-[70vh] w-full overflow-hidden rounded-xl border border-slate-200"></div>
-      <p class="text-xs text-slate-400">Lokasi bengkel yang terverifikasi. Lihat langsung lokasi di peta saat pan/zoom.</p>
+      <div id="map" role="region" aria-label="Peta bengkel terverifikasi" class="h-[70vh] w-full overflow-hidden rounded-xl border border-slate-200"></div>
+      <p id="map-hint" class="text-xs text-slate-400">Lokasi bengkel yang terverifikasi. Lihat langsung lokasi di peta saat pan/zoom.</p>
     </div>`;
-  return layout({ title: "Peta", active: "home", inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col", noContainer: false }, body);
+  return layout({ title: "Peta", active: "home", inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
 export function loginPage(error?: string): string {
@@ -101,7 +111,7 @@ export function loginPage(error?: string): string {
       <h1 class="mb-1 text-xl font-semibold">Masuk</h1>
       <p class="mb-6 text-sm text-slate-500">Akun yang sama berlaku di aplikasi Android maupun web.</p>
       ${err}
-      <form hx-post="/api/auth/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+      <form hx-post="/api/auth/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         ${field("email", "Email", "", { type: "email", placeholder: "nama@email.com", required: true })}
         ${field("password", "Password", "", { type: "password", required: true })}
         <button class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Masuk</button>
@@ -119,7 +129,7 @@ export function registerPage(error?: string): string {
       <h1 class="mb-1 text-xl font-semibold">Daftar akun</h1>
       <p class="mb-6 text-sm text-slate-500">Dipakai untuk melacak siapa yang menambah data.</p>
       ${err}
-      <form hx-post="/api/auth/register" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+      <form hx-post="/api/auth/register" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         ${field("email", "Email", "", { type: "email", placeholder: "nama@email.com", required: true })}
         ${field("password", "Password", "", { type: "password", required: true, hint: "Minimal 8 karakter." })}
         <button class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Daftar</button>
@@ -151,19 +161,19 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
       <div class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         <div>
           <label class="mb-1 block text-sm font-medium text-slate-700">1. Titik lokasi di peta</label>
-          <div id="pick" class="h-64 w-full overflow-hidden rounded-lg border border-slate-300"></div>
+          <div id="pick" role="region" aria-label="Peta pemilih lokasi" class="h-64 w-full overflow-hidden rounded-lg border border-slate-300"></div>
           <p id="pick-note" class="mt-1 text-xs text-slate-400">Klik peta untuk menandai lokasi, atau cari alamat di bawah.</p>
         </div>
         <div>
           <label for="addr" class="mb-1 block text-sm font-medium text-slate-700">2. Cari alamat</label>
           <div class="flex gap-2">
             <input id="addr" type="text" placeholder="Alamat / nama jalan / kota…"
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" />
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
             <button type="button" onclick="geocode()" class="shrink-0 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Cari</button>
           </div>
           <p id="geocode-msg" class="mt-1 text-xs text-slate-400"></p>
         </div>
-        <form hx-post="/api/submissions" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" class="space-y-4">
+        <form hx-post="/api/submissions" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4">
           <input type="hidden" id="lat" name="lat" required />
           <input type="hidden" id="lon" name="lon" required />
           ${field("name", "Nama bengkel", "", { placeholder: "Tambah Ban Jaya", required: true })}
@@ -194,9 +204,9 @@ export function adminLoginPage(error?: string): string {
       <h1 class="mb-1 text-xl font-semibold">Login admin</h1>
       <p class="mb-6 text-sm text-slate-500">Hanya untuk peninjau data.</p>
       ${err}
-      <form hx-post="/api/admin/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+      <form hx-post="/api/admin/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         ${field("password", "Password", "", { type: "password", required: true })}
-        <button class="w-full rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Masuk</button>
+        <button class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Masuk</button>
       </form>
     </div>`;
   return layout({ title: "Login admin", active: "", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
@@ -232,10 +242,6 @@ function submissionCard(row: UnverifiedSubmission, index: number): string {
       </div>
     </div>
   </li>`;
-}
-
-export function adminQueueRow(row: UnverifiedSubmission, index: number): string {
-  return submissionCard(row, index);
 }
 
 export function adminQueueEmpty(): string {
@@ -315,9 +321,9 @@ export function adminDataList(rows: Workshop[]): string {
 }
 
 export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): string {
-  const sel = (name: string, value: string | undefined, options: Array<[string, string]>) =>
-    `<select name="${name}" hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" hx-trigger="change"
-        hx-include="closest form" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none">
+  const sel = (name: string, value: string | undefined, options: Array<[string, string]>, label: string) =>
+    `<select name="${name}" aria-label="${label}" hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" hx-trigger="change"
+        hx-include="closest form" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
       <option value="">${esc(options[0][1])}</option>
       ${options
         .slice(1)
@@ -331,10 +337,10 @@ export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): strin
         <a href="/admin/data" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
       </div>
       <form hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" class="flex flex-wrap items-center gap-2">
-        <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari nama / alamat / kota…"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none sm:w-64" />
-        ${sel("verified", query.verified, [["", "Semua status"], ["false", "Belum terverifikasi"], ["true", "Terverifikasi"]])}
-        ${sel("source", query.source, [["", "Semua sumber"], ["user", "Pengguna"], ["osm", "OSM"]])}
+        <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari nama / alamat / kota…" aria-label="Cari nama, alamat, atau kota"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-64" />
+        ${sel("verified", query.verified, [["", "Semua status"], ["false", "Belum terverifikasi"], ["true", "Terverifikasi"]], "Filter status")}
+        ${sel("source", query.source, [["", "Semua sumber"], ["user", "Pengguna"], ["osm", "OSM"]], "Filter sumber")}
         <button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Terapkan</button>
       </form>
       <ul id="data-list" class="space-y-3">${adminDataList(rows)}</ul>
@@ -370,8 +376,8 @@ export function adminUsersPage(users: AdminUser[], total: number, query: { searc
         <a href="/admin/users" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
       </div>
       <form method="get" action="/admin/users" class="flex flex-wrap items-center gap-2">
-        <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari email / telepon…"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none sm:w-64" />
+        <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari email / telepon…" aria-label="Cari email atau telepon pengguna"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-64" />
         <button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Cari</button>
       </form>
       <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -433,8 +439,8 @@ export function adminReviewsPage(
         <a href="/admin/reviews" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
       </div>
       <form method="get" action="/admin/reviews" class="flex flex-wrap items-center gap-2">
-        <select name="rating" onchange="this.form.submit()"
-          class="rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-emerald-500 focus:outline-none">
+        <select name="rating" aria-label="Filter rating" onchange="this.form.submit()"
+          class="rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
           <option value="">Semua rating</option>
           ${ratingOptions}
         </select>
