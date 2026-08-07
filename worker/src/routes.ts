@@ -20,6 +20,7 @@ import {
 } from "./lib/validation";
 import {
   homePage,
+  workshopDetailPage,
   loginPage,
   registerPage,
   submitPage,
@@ -60,6 +61,18 @@ app.get("/", async (c) => {
   const s = await getSession(c);
   const flash = c.req.query("submitted") === "1" ? successToast("Kiriman diterima. Menunggu peninjauan admin.") : "";
   return c.html(homePage({ email: s.email, admin: s.admin }, flash));
+});
+
+app.get("/workshops/:id", async (c) => {
+  const s = await getSession(c);
+  const id = c.req.param("id");
+  if (!UUID_RE.test(id)) return c.html(workshopDetailPage(null, s));
+  try {
+    const w = await db.fetchWorkshopById(c.env, id);
+    return c.html(workshopDetailPage(w, s));
+  } catch {
+    return c.html(workshopDetailPage(null, s), 502);
+  }
 });
 
 app.get("/login", async (c) => {
@@ -142,13 +155,19 @@ app.get("/admin/reviews", async (c) => {
 
 // ---------- sitemap ----------
 
-app.get("/sitemap.xml", (c) => {
+app.get("/sitemap.xml", async (c) => {
   const urls = [
     { path: "/", priority: "1.0", changefreq: "daily" },
     { path: "/submit", priority: "0.8", changefreq: "monthly" },
     { path: "/login", priority: "0.3", changefreq: "monthly" },
     { path: "/register", priority: "0.3", changefreq: "monthly" },
   ];
+  try {
+    const rows = await db.fetchVerifiedWorkshops(c.env, {});
+    for (const w of rows) urls.push({ path: `/workshops/${w.id}`, priority: "0.6", changefreq: "weekly" });
+  } catch {
+    // sitemap still works with static URLs if the DB read fails
+  }
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',

@@ -141,6 +141,19 @@ console.log("\n[3] Workshops API");
 
   const noBbox = await get("/api/workshops");
   check("no bbox params still works", noBbox.status === 200);
+
+  const rows = JSON.parse(all.text);
+  if (rows.length) {
+    const first = rows[0];
+    const det = await get(`/workshops/${first.id}`);
+    check("detail page returns 200", det.status === 200);
+    check("detail page shows workshop name", det.text.includes(first.name));
+    check("detail page shows verified badge", det.text.includes("Terverifikasi"));
+    const detBad = await get("/workshops/not-a-uuid");
+    check("detail page rejects invalid UUID (404-ish)", detBad.status === 404 || detBad.text.includes("tidak ditemukan"));
+  } else {
+    check("detail page — skipped (no rows)", true, "skipped");
+  }
 }
 
 // ---------- 4. Submit flow ----------

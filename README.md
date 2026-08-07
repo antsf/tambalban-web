@@ -14,7 +14,8 @@ this site is just another front door onto the shared `tambal_ban` table.
 ## Features
 
 - Public map reading only `verified=true` rows from `tambal_ban` (Leaflet + OSM tiles,
-  viewport-by-viewport fetch + name/city search).
+  viewport-by-viewport fetch + name/city search). Every workshop has a detail page
+  (`/workshops/:id`) with its full record and call/WhatsApp actions.
 - Register/login via **Supabase Auth** — the same account store as the Android app. The access
   token rides in an HttpOnly cookie (`tb_access_token`).
 - Submit form (login required, rate-limited) inserting `source='user'`, `verified=false`;

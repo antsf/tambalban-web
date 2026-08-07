@@ -13,8 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - E2E smoke suite (`npm run test:e2e`): 80 checks across pages, auth flow, workshops API,
   submit, geocode, admin auth/pages, bulk guards, upload, sitemap/robots, security headers,
   and session-consistency
+- Workshop detail page (`/workshops/:id`): clicking "Detail" on a marker, a result, a map
+  popup opens a page showing every field — address, phone, WhatsApp, website, Instagram,
+  hours, all 8 services, plus call/WhatsApp/open-location actions
+- Workshop pages are now included in `sitemap.xml`
 
 ### Fixed
+- Map rendered blank because the Content-Security-Policy `style-src` blocked the Leaflet
+  stylesheet loaded from `unpkg.com` — `unpkg.com` is now allowed for stylesheets, so tiles
+  and popups render again
+- Workshop images from Supabase Storage are now allowed by `img-src`
 - Session consistency across public pages: the header now reflects real login state instead
   of always showing "Masuk" — logged-in contributors see "Keluar", admins keep their nav, and
   an admin visiting `/submit` sees an explainer card (admin session is separate from the

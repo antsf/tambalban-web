@@ -24,6 +24,7 @@ function popup(w){
   if(w.opening_hours) h.push('<div class="mt-1 text-slate-500">Jam: '+esc(w.opening_hours)+'</div>');
   const svc=Object.keys(svcLabel).filter(k=>w[k]).map(k=>svcLabel[k]);
   if(svc.length) h.push('<div class="mt-1 text-xs text-slate-500">'+esc(svc.join(', '))+'</div>');
+  h.push('<a class="mt-2 block rounded-lg border border-slate-300 px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-50" href="/workshops/'+esc(w.id)+'">Detail</a>');
   if(w.whatsapp) h.push('<a class="mt-2 block rounded-lg bg-emerald-600 px-4 py-2 text-center font-medium text-white hover:bg-emerald-700" href="https://wa.me/'+esc(w.whatsapp.replace(/[^0-9]/g,''))+'">WhatsApp</a>');
   if(w.phone) h.push('<a class="mt-2 block rounded-lg border border-slate-300 px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-50" href="tel:'+esc(w.phone)+'">Telepon</a>');
   h.push('</div>');
@@ -38,6 +39,7 @@ function rowHtml(w){
     +(city?'<div class="truncate text-sm text-slate-500">'+city+'</div>':'')
     +'</div>'
     +'<div class="flex shrink-0 items-center gap-3 text-sm">'
+    +'<a class="font-medium text-slate-700 hover:underline" href="/workshops/'+esc(w.id)+'">Detail</a>'
     +'<button type="button" onclick="focusMarker(\''+esc(w.id)+'\')" class="font-medium text-slate-700 hover:underline">Lihat di peta</button>'
     +tel
     +'</div></li>';
@@ -171,6 +173,64 @@ export function homePage(session: { email: string | null; admin: boolean } = { e
       <ul id="results-list" aria-live="polite" aria-label="Daftar bengkel yang tampil di layar" class="space-y-2"></ul>
     </div>`;
   return layout({ title: "Peta", active: "home", maps: true, inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
+}
+
+export function workshopDetailPage(
+  w: Workshop | null,
+  session: { email: string | null; admin: boolean } = { email: null, admin: false },
+): string {
+  if (!w) {
+    return layout(
+      { title: "Bengkel tidak ditemukan", active: "", bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined },
+      `<div class="mx-auto max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center"><h1 class="mb-2 text-xl font-semibold">Bengkel tidak ditemukan</h1><p class="mb-6 text-sm text-slate-500">Data tidak tersedia atau belum terverifikasi.</p><a href="/" class="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Kembali ke peta</a></div>`,
+    );
+  }
+
+  const svc = SERVICE_LABELS.filter(([k]) => w[k]).map(([, label]) => label);
+  const rows: Array<[string, string | null]> = [
+    ["Alamat", w.address],
+    ["Kota", w.city],
+    ["Kecamatan", w.district],
+    ["Provinsi", w.province],
+    ["Jam buka", w.opening_hours],
+    ["Telepon", w.phone],
+    ["WhatsApp", w.whatsapp],
+    ["Website", w.website],
+    ["Instagram", w.instagram],
+  ];
+
+  const detailRows = rows
+    .filter(([, v]) => v)
+    .map(([label, v]) => `<div class="flex justify-between gap-4 border-b border-slate-100 py-2 text-sm"><dt class="text-slate-500">${esc(label)}</dt><dd class="font-medium text-slate-900">${esc(v!)}</dd></div>`)
+    .join("");
+
+  const body = `
+    <div class="mx-auto max-w-2xl space-y-6">
+      <a href="/" class="text-sm font-medium text-emerald-600 hover:underline">&larr; Kembali ke peta</a>
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-900">${esc(w.name)}</h1>
+        <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+          <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">Terverifikasi</span>
+          ${w.city ? `<span>${esc(w.city)}</span>` : ""}
+          ${w.source === "osm" ? `<span class="text-xs text-slate-400">(OpenStreetMap)</span>` : ""}
+        </p>
+      </div>
+
+      ${w.image_url ? `<img src="${esc(w.image_url)}" alt="${esc(w.name)}" class="aspect-video w-full rounded-xl border border-slate-200 object-cover" />` : ""}
+
+      <dl class="rounded-xl border border-slate-200 bg-white px-5 py-2">
+        ${detailRows}
+        ${svc.length ? `<div class="flex justify-between gap-3 border-b border-slate-100 py-2 text-sm"><dt class="text-slate-500">Layanan</dt><dd class="flex flex-wrap justify-end gap-1.5">${svc.map((s) => `<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">${esc(s)}</span>`).join("")}</dd></div>` : ""}
+      </dl>
+
+      <div class="flex flex-wrap gap-3">
+        ${w.whatsapp ? `<a class="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-emerald-700" href="https://wa.me/${esc(w.whatsapp.replace(/[^0-9]/g, ""))}">WhatsApp</a>` : ""}
+        ${w.phone ? `<a class="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50" href="tel:${esc(w.phone)}">Telepon</a>` : ""}
+        ${w.lat !== undefined && w.lon !== undefined ? `<a class="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50" target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${w.lat}&mlon=${w.lon}#map=16/${w.lat}/${w.lon}">Buka lokasi</a>` : ""}
+      </div>
+    </div>`;
+
+  return layout({ title: w.name, active: "", admin: session.admin, user: session.email ?? undefined, bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
 export function loginPage(error?: string, session: { email: string | null; admin: boolean } = { email: null, admin: false }): string {

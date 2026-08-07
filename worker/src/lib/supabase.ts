@@ -103,6 +103,21 @@ export async function fetchVerifiedWorkshops(
   return res.json() as Promise<Workshop[]>;
 }
 
+/** Read a single verified workshop by id using the anon key (public route). */
+export async function fetchWorkshopById(env: Env, id: string): Promise<Workshop | null> {
+  const params = new URLSearchParams();
+  params.set("select", WORKSHOP_SELECT);
+  params.set("id", `eq.${id}`);
+  params.set("verified", "eq.true");
+  const res = await fetch(
+    `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/tambal_ban?${params.toString()}`,
+    { headers: bearer(env.NEXT_PUBLIC_SUPABASE_ANON_KEY) },
+  );
+  if (!res.ok) throw new Error(`tambal_ban read failed: ${res.status} ${await res.text()}`);
+  const rows = (await res.json()) as Workshop[];
+  return rows[0] ?? null;
+}
+
 /** Insert a user submission. The RLS user_insert policy + BEFORE INSERT trigger stamp user_id. */
 export async function insertSubmission(
   env: Env,
