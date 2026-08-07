@@ -153,9 +153,10 @@ async function uploadPhoto(input){
 }
 `;
 
-export function homePage(): string {
+export function homePage(session: { email: string | null; admin: boolean } = { email: null, admin: false }, flash = ""): string {
   const body = `
     <div class="flex flex-col gap-4">
+      ${flash}
       <div class="flex flex-wrap items-center gap-3">
         <div>
           <h1 class="text-lg font-semibold text-slate-900">Peta bengkel tambal ban</h1>
@@ -169,10 +170,10 @@ export function homePage(): string {
       <p id="map-hint" aria-live="polite" class="text-xs text-slate-500">Lokasi bengkel yang terverifikasi. Lihat langsung lokasi di peta saat pan/zoom.</p>
       <ul id="results-list" aria-live="polite" aria-label="Daftar bengkel yang tampil di layar" class="space-y-2"></ul>
     </div>`;
-  return layout({ title: "Peta", active: "home", maps: true, inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col" }, body);
+  return layout({ title: "Peta", active: "home", maps: true, inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
 }
 
-export function loginPage(error?: string): string {
+export function loginPage(error?: string, session: { email: string | null; admin: boolean } = { email: null, admin: false }): string {
   const err = error ? errorToast(error) : "";
   const body = `
     <div class="mx-auto max-w-sm">
@@ -187,10 +188,10 @@ export function loginPage(error?: string): string {
       <p class="mt-4 text-center text-sm text-slate-500">Belum punya akun?
         <a href="/register" class="font-medium text-emerald-600 hover:underline">Daftar</a></p>
     </div>`;
-  return layout({ title: "Masuk", active: "", bodyClass: "flex min-h-screen flex-col" }, body);
+  return layout({ title: "Masuk", active: "", bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
 }
 
-export function registerPage(error?: string): string {
+export function registerPage(error?: string, session: { email: string | null; admin: boolean } = { email: null, admin: false }): string {
   const err = error ? errorToast(error) : "";
   const body = `
     <div class="mx-auto max-w-sm">
@@ -205,19 +206,27 @@ export function registerPage(error?: string): string {
       <p class="mt-4 text-center text-sm text-slate-500">Sudah punya akun?
         <a href="/login" class="font-medium text-emerald-600 hover:underline">Masuk</a></p>
     </div>`;
-  return layout({ title: "Daftar", active: "", bodyClass: "flex min-h-screen flex-col" }, body);
+  return layout({ title: "Daftar", active: "", bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
 }
 
-export function submitPage(loggedInEmail: string | null, error?: string): string {
+export function submitPage(loggedInEmail: string | null, isAdmin = false, error?: string): string {
   if (!loggedInEmail) {
-    const body = `
+    const body = isAdmin
+      ? `
+      <div class="mx-auto max-w-sm rounded-xl border border-slate-200 bg-white p-8 text-center">
+        <h1 class="mb-2 text-xl font-semibold">Sesi admin terpisah dari akun kontributor</h1>
+        <p class="mb-6 text-sm text-slate-500">Sesi admin hanya untuk peninjauan. Untuk menambah bengkel, masuk dengan akun kontributor (email & password yang sama di aplikasi Android).</p>
+        <a href="/login" class="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Masuk sebagai kontributor</a>
+        <p class="mt-3 text-sm text-slate-500">Belum punya akun? <a href="/register" class="font-medium text-emerald-600 hover:underline">Daftar</a></p>
+      </div>`
+      : `
       <div class="mx-auto max-w-sm rounded-xl border border-slate-200 bg-white p-8 text-center">
         <h1 class="mb-2 text-xl font-semibold">Masuk dulu untuk menambah</h1>
         <p class="mb-6 text-sm text-slate-500">Setiap tambahan tercatat atas nama akunmu.</p>
         <a href="/login" class="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Masuk</a>
         <p class="mt-3 text-sm text-slate-500">Belum punya akun? <a href="/register" class="font-medium text-emerald-600 hover:underline">Daftar</a></p>
       </div>`;
-    return layout({ title: "Tambah bengkel", active: "submit", bodyClass: "flex min-h-screen flex-col" }, body);
+    return layout({ title: "Tambah bengkel", active: "submit", admin: isAdmin, bodyClass: "flex min-h-screen flex-col" }, body);
   }
   const err = error ? errorToast(error) : "";
   const services = SERVICE_LABELS.map(([k, label]) => checkbox(k, label, false)).join("");
@@ -272,7 +281,7 @@ export function submitPage(loggedInEmail: string | null, error?: string): string
         </form>
       </div>
     </div>`;
-  return layout({ title: "Tambah bengkel", active: "submit", user: loggedInEmail ?? undefined, maps: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [SUBMIT_MAP_JS] }, body);
+  return layout({ title: "Tambah bengkel", active: "submit", admin: isAdmin, user: loggedInEmail ?? undefined, maps: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [SUBMIT_MAP_JS] }, body);
 }
 
 export function adminLoginPage(error?: string): string {

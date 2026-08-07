@@ -42,16 +42,49 @@ const isSecure = (url: string): boolean => url.startsWith("https://");
 
 // ---------- pages ----------
 
-app.get("/", (c) => c.html(homePage()));
-app.get("/login", (c) => c.html(loginPage()));
-app.get("/register", (c) => c.html(registerPage()));
+interface SessionState {
+  email: string | null;
+  admin: boolean;
+}
 
-app.get("/submit", (c) => {
-  const email = userEmailFromToken(getUserToken(c.req.header("Cookie")));
-  return c.html(submitPage(email));
+/** Read both cookies once so every page can render a consistent header. */
+async function getSession(c: Context<{ Bindings: Env }>): Promise<SessionState> {
+  const cookie = c.req.header("Cookie");
+  return {
+    email: userEmailFromToken(getUserToken(cookie)),
+    admin: await isAdmin(cookie, c.env.ADMIN_SESSION_SECRET),
+  };
+}
+
+app.get("/", async (c) => {
+  const s = await getSession(c);
+  const flash = c.req.query("submitted") === "1" ? successToast("Kiriman diterima. Menunggu peninjauan admin.") : "";
+  return c.html(homePage({ email: s.email, admin: s.admin }, flash));
 });
 
-app.get("/admin/login", (c) => c.html(adminLoginPage()));
+app.get("/login", async (c) => {
+  const s = await getSession(c);
+  if (s.email) return c.redirect("/submit");
+  const flash = c.req.query("registered") === "1" ? successToast("Akun dibuat. Cek email untuk konfirmasi, lalu masuk.") : "";
+  return c.html(loginPage(flash, { email: null, admin: s.admin }));
+});
+
+app.get("/register", async (c) => {
+  const s = await getSession(c);
+  if (s.email) return c.redirect("/submit");
+  return c.html(registerPage(undefined, { email: null, admin: s.admin }));
+});
+
+app.get("/submit", async (c) => {
+  const s = await getSession(c);
+  return c.html(submitPage(s.email, s.admin));
+});
+
+app.get("/admin/login", async (c) => {
+  const s = await getSession(c);
+  if (s.admin) return c.redirect("/admin");
+  return c.html(adminLoginPage());
+});
 
 app.get("/admin", async (c) => {
   if (!(await isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET))) return c.redirect("/admin/login");

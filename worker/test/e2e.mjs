@@ -45,7 +45,7 @@ async function get(path, { cookie } = {}) {
     headers: cookie ? { Cookie: cookie } : {},
     redirect: "manual",
   });
-  return { status: res.status, text: await res.text() };
+  return { status: res.status, text: await res.text(), location: res.headers.get("location") ?? "" };
 }
 
 async function post(path, body, { cookie, type = "application/json" } = {}) {
@@ -180,6 +180,48 @@ console.log("\n[4] Submit flow");
   } else {
     check("submit flow — skipped (no JWT from login)", true, "skipped: no token returned");
   }
+}
+
+// ---------- 4b. Session consistency (header/nav state per session) ----------
+console.log("\n[4b] Session consistency");
+{
+  // User logged in: home header must show "Keluar", not "Masuk"
+  const login = await post("/api/auth/login", JSON.stringify({ email, password }));
+  const token = parseCookie(login.setCookie, "tb_access_token");
+
+  if (token) {
+    const home = await get("/", { cookie: `tb_access_token=${token}` });
+    check("logged-in user home shows Keluar", home.text.includes("Keluar"));
+    check("logged-in user home hides Masuk", !home.text.includes(">Masuk<"));
+    check("logged-in user home shows their email context", home.status === 200);
+
+    const l = await get("/login", { cookie: `tb_access_token=${token}` });
+    check("logged-in user visiting /login redirects to /submit", l.status === 302 && l.location.includes("/submit"));
+
+    const reg = await get("/register", { cookie: `tb_access_token=${token}` });
+    check("logged-in user visiting /register redirects to /submit", reg.status === 302 && reg.location.includes("/submit"));
+  } else {
+    check("session consistency — skipped (no JWT)", true, "skipped: no token returned");
+  }
+
+  // Admin logged in: /submit keeps admin nav and explains the separate contributor account
+  const alogin = await post("/api/admin/login", JSON.stringify({ password: ADMIN_PASSWORD }));
+  const asession = parseCookie(alogin.setCookie, "tb_admin_session");
+  if (asession) {
+    const submit = await get("/submit", { cookie: `tb_admin_session=${asession}` });
+    check("admin visiting /submit keeps admin nav", submit.text.includes("Antrian"));
+    check("admin visiting /submit does NOT show 'Masuk dulu'", !submit.text.includes("Masuk dulu untuk menambah"));
+    check("admin visiting /submit explains separate contributor account", submit.text.includes("Sesi admin terpisah"));
+
+    const adminLogin = await get("/admin/login", { cookie: `tb_admin_session=${asession}` });
+    check("admin visiting /admin/login redirects to /admin", adminLogin.status === 302 && adminLogin.location.includes("/admin"));
+  } else {
+    check("admin session consistency — skipped (no session)", true, "skipped: no admin session");
+  }
+
+  // Flash message after submit
+  const flash = await get("/?submitted=1");
+  check("home shows submitted flash toast", flash.text.includes("Kiriman diterima"));
 }
 
 // ---------- 5. Geocode API ----------
