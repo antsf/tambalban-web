@@ -7,7 +7,8 @@ web app — the target state, plus the contract for anything added to it.
 > `tambal_ban` and rewritten from Next.js to a lightweight stack (HTML/CSS/JS + HTMX + Hono,
 > deployed on Cloudflare Workers). The old Next.js code in `src/` still targets the retired
 > `workshops`/`workshop_submissions` design and does **not** work against the live database —
-> treat it as deprecated scaffolding. Everything below describes the **target state**.
+> treat it as deprecated scaffolding. Everything below describes the **target state**. The
+> worker in `worker/` implements it; see [`CHANGELOG.md`](./CHANGELOG.md) for what shipped.
 
 ---
 
@@ -110,10 +111,14 @@ The admin client uses the service-role key, which bypasses RLS.
   required `User-Agent`, rate-limits per IP) — never called from the browser directly.
 - **Pages:**
   - `/` — public map reading `verified=true` rows.
-  - `/login`, `/register` — Supabase Auth forms (same flow as the app).
+  - `/login`, `/register` — Supabase Auth forms (same flow as the app). A logged-in user is
+    redirected to `/submit` instead of seeing these forms again.
   - `/submit` — login-required submission form → inserts `source='user'`, `verified=false`.
-  - `/admin/login` — shared-password gate.
-  - `/admin` — unverified queue; publish (flip `verified`) / remove.
+    Session-aware: an admin (separate admin session) sees an explainer card with the admin
+    nav preserved rather than a dead-end login prompt.
+  - `/admin/login` — shared-password gate. An already-authenticated admin is redirected to
+    `/admin`.
+  - `/admin` — unverified queue; publish (flip `verified`) / remove, bulk publish/remove.
 - **Server routes** (Hono):
   - `GET /api/workshops` — viewport query + name/city search on verified rows.
   - `GET /api/geocode` — Nominatim proxy (rate-limited).
@@ -121,9 +126,17 @@ The admin client uses the service-role key, which bypasses RLS.
   - `POST /api/submissions` — authenticated insert into `tambal_ban` (rate-limited).
   - `POST /api/admin/login`, `POST /api/admin/logout` — session cookie.
   - `GET /api/admin/submissions`, `POST /api/admin/submissions/[id]/publish` — admin-gated.
+  - `GET /api/admin/workshops`, `POST /api/admin/publish`, `POST /api/admin/remove`,
+    `POST /api/admin/users`, `GET /api/admin/users`, `GET/POST /api/admin/reviews`,
+    `POST /api/upload` — admin-gated management.
 - **Validation:** every public write/geocode input validated first (Zod v4), including
   Indonesia bounds (`lat -11..6`, `lng 95..141`). Reject out-of-bounds at the API layer.
-- **Rate limiting:** in-memory, per-instance (fine for single-region Cloudflare deploy).
+- **Rate limiting:** in-memory, per-instance (fine for single-region Cloudflare deploy):
+  5 submissions and 5 admin logins per 60s per IP.
+- **Security headers:** CSP + `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy` applied by a middleware to every response.
+- **Session rendering:** one `getSession()` helper reads both the contributor JWT cookie and
+  the admin HMAC cookie per request so the header/nav always reflect real state.
 
 ---
 
@@ -164,6 +177,7 @@ Reconsidering an already-published row happens by editing the database directly.
   `auth.role() = 'authenticated'`); the web app must send the logged-in user's token.
 - Submission and geocode endpoints are rate-limited per IP.
 - Indonesia bounds enforced in the submission validator.
+- CSP + security headers on every response (see `worker/src/lib/security.ts`).
 
 ---
 
@@ -173,8 +187,9 @@ Reconsidering an already-published row happens by editing the database directly.
 - No role-based per-user accounts for admin — one shared password (see §4).
 - No PostGIS — `tambal_ban` is small enough for plain lat/lon column comparisons
   (`idx_tambal_ban_location`); revisit if the table passes ~50k rows.
-- No photo-upload UI on v1 of the rewrite (the Android app already uploads to the public
-  `workshops` bucket; a web photo picker can be added later).
+- No photo-upload UI on v1 of the rewrite ~~(the Android app already uploads to the public
+  `workshops` bucket; a web photo picker can be added later)~~ — the web app now uploads
+  images to the shared `workshops` bucket via `POST /api/upload`.
 - No multi-region rate limiting — the in-memory limiter is per-instance.
 
 ---

@@ -19,9 +19,14 @@ this site is just another front door onto the shared `tambal_ban` table.
   token rides in an HttpOnly cookie (`tb_access_token`).
 - Submit form (login required, rate-limited) inserting `source='user'`, `verified=false`;
   an admin flips `verified=true` to publish. Indonesia-bounds validated server-side (Zod).
-- Admin gate: shared `ADMIN_PASSWORD` + HMAC-signed cookie, scoped to `/admin/*`.
+- Admin gate: shared `ADMIN_PASSWORD` + HMAC-signed cookie, scoped to `/admin/*`. The admin
+  queue supports publish/remove, bulk publish/remove, an all-data page with infinite scroll,
+  and users + reviews management pages.
 - Nominatim geocoding proxied through `GET /api/geocode` (server sets `User-Agent`, rate-limits).
-- Details: [`SPEC.md`](./SPEC.md), philosophy: [`../soul.md`](../soul.md).
+- Session-aware pages: the header renders the real login state (anonymous / contributor /
+  admin) on every page, and logged-in users don't see the login/register forms again.
+- Security headers (CSP, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`).
+- Details: [`SPEC.md`](./SPEC.md), [`CHANGELOG.md`](./CHANGELOG.md), philosophy: [`../soul.md`](../soul.md).
 
 ## Stack
 
@@ -67,6 +72,8 @@ cd worker
 npm run dev       # http://localhost:8787
 npm run build:css # recompile Tailwind (auto before deploy)
 npm run check     # tsc --noEmit
+npm run test      # Vitest unit tests
+npm run test:e2e  # E2E smoke test (needs `npm run dev` running; ~65s between runs due to rate limit)
 ```
 
 Deploy:

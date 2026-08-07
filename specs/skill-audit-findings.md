@@ -4,7 +4,7 @@ All 19 skills in `.claude/skills/` were run against the live `worker/stack`. Bel
 finding, grouped by skill, with its status and the commit that fixed it.
 
 **Status key:**
-- ✅ Fixed — shipped in commit `760c489` or `afcc97d`
+- ✅ Fixed — shipped in commit `760c489`, `afcc97d`, `472678a`, or `ca1d31f`
 - ⏭️ Audit-only — skill confirmed compliance, no fix needed
 - ⏳ Deferred — requires infrastructure change (Cloudflare config, CI pipeline)
 
@@ -213,8 +213,8 @@ finding, grouped by skill, with its status and the commit that fixed it.
 | HTMX + Leaflet render-blocking on non-map pages | ✅ Fixed | `760c489` — conditional loading via `maps` flag |
 | `useMyLocation` geolocation outside Indonesia bounds | ✅ Fixed | `afcc97d` — client-side bounds check added |
 | Sitemap.xml generation | ✅ Fixed | `afcc97d` — `/sitemap.xml` route returns XML |
-| CSP headers | ⏳ Deferred | Needs Cloudflare Workers config change; defer to deployment phase |
-| Lighthouse CI | ⏳ Deferred | No CI pipeline configured yet; defer to deployment phase |
+| CSP headers | ✅ Fixed | `472678a` — security headers + CSP middleware in `worker/src/lib/security.ts` |
+| Lighthouse CI | ✅ Fixed | `ca1d31f` — `.github/workflows/lighthouse.yml` (a11y ≥90, SEO ≥90 errors; perf ≥85 warn; FCP <3s, LCP <4s, CLS <0.1) |
 
 ---
 
