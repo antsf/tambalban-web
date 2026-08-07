@@ -32,6 +32,8 @@ import {
 } from "./views/pages";
 import { errorToast, successToast } from "./views/layout";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const app = new Hono<{ Bindings: Env }>();
 
 app.use("*", securityHeaders);
@@ -71,6 +73,7 @@ app.get("/admin/data", async (c) => {
       verified: q.verified === "true" ? true : q.verified === "false" ? false : undefined,
       source: q.source,
       limit: q.limit,
+      offset: q.offset,
     });
     return c.html(adminAllDataPage(rows, q));
   } catch {
@@ -380,7 +383,7 @@ app.post("/api/admin/bulk/publish", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   let body: Record<string, unknown>;
   try { body = await c.req.json(); } catch { return c.json({ error: "Invalid" }, 400); }
-  const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string" && UUID_RE.test(x)) : [];
   if (!ids.length) return c.json({ error: "No IDs" }, 400);
   try {
     await db.bulkPublish(c.env, ids);
@@ -394,7 +397,7 @@ app.post("/api/admin/bulk/remove", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   let body: Record<string, unknown>;
   try { body = await c.req.json(); } catch { return c.json({ error: "Invalid" }, 400); }
-  const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string" && UUID_RE.test(x)) : [];
   if (!ids.length) return c.json({ error: "No IDs" }, 400);
   try {
     await db.bulkRemove(c.env, ids);

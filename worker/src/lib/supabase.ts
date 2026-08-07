@@ -4,6 +4,11 @@ const JSON_HEADERS = {
   "Content-Type": "application/json",
 } as const;
 
+/** Escape special chars so they don't affect ilike patterns. */
+function escapeIlike(term: string): string {
+  return term.replace(/%/g, "\\%").replace(/_/g, "\\_").replace(/\\/g, "\\\\");
+}
+
 function bearer(token: string): Record<string, string> {
   return {
     apikey: token,
@@ -79,10 +84,8 @@ export async function fetchVerifiedWorkshops(
   params.set("order", "name.asc");
 
   if (opts.search) {
-    params.set(
-      "or",
-      `(name.ilike.*${opts.search}*,city.ilike.*${opts.search}*)`,
-    );
+    const s = escapeIlike(opts.search);
+    params.set("or", `(name.ilike.*${s}*,city.ilike.*${s}*)`);
   }
   if (opts.bbox) {
     const { minLat, maxLat, minLng, maxLng } = opts.bbox;
@@ -145,7 +148,8 @@ export async function fetchAllWorkshops(
   params.set("limit", String(opts.limit ?? 100));
   if (opts.offset) params.set("offset", String(opts.offset));
   if (opts.search) {
-    params.set("or", `(name.ilike.*${opts.search}*,address.ilike.*${opts.search}*,city.ilike.*${opts.search}*)`);
+    const s = escapeIlike(opts.search);
+    params.set("or", `(name.ilike.*${s}*,address.ilike.*${s}*,city.ilike.*${s}*)`);
   }
   if (opts.verified !== undefined) params.set("verified", opts.verified ? "eq.true" : "eq.false");
   if (opts.source) params.set("source", `eq.${opts.source}`);

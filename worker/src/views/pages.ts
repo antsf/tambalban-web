@@ -12,8 +12,10 @@ const SERVICE_LABELS: Array<[keyof Pick<Workshop, "motorcycle_tyres" | "car_tyre
   ["roadside_service", "Servis panggilan"],
 ];
 
+const CLIENT_ESC = `function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}`;
+
 const MAP_JS = `
-function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+${CLIENT_ESC}
 const svcLabel={'motorcycle_tyres':'Ban motor','car_tyres':'Ban mobil','truck_tyres':'Ban truk','tubeless_repair':'Tambal tubeless','vulcanizer':'Vulkanisir','balancing':'Balancing','spooring':'Spooring','roadside_service':'Servis panggilan'};
 function popup(w){
   const h=['<div class="min-w-52 text-sm">'];
@@ -77,7 +79,7 @@ document.addEventListener('DOMContentLoaded',load);
 `;
 
 const SUBMIT_MAP_JS = `
-function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+${CLIENT_ESC}
 const map=L.map('pick').setView([-6.2,106.8],11);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 let marker;
@@ -288,7 +290,7 @@ export function adminLoginPage(error?: string): string {
   return layout({ title: "Login admin", active: "", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
-function submissionCard(row: UnverifiedSubmission, _index: number): string {
+function submissionCard(row: UnverifiedSubmission): string {
   const link = row.lat != null && row.lon != null
     ? `<a class="text-emerald-600 hover:underline" target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${row.lat}&mlon=${row.lon}#map=17/${row.lat}/${row.lon}">Lihat di peta</a>`
     : "";
@@ -333,21 +335,24 @@ function updateBulkBar(){
   else bar.classList.add('hidden');
 }
 function toggleAll(cb){document.querySelectorAll('.q-cb').forEach(c=>{c.checked=cb.checked;});updateBulkBar();}
+function updateQueueCount(){const n=document.querySelectorAll('#queue li[data-id]').length;const h=document.querySelector('h1');if(h)h.textContent='Antrian kiriman ('+n+')';}
 async function bulkPublish(){
   const ids=selIds();if(!ids.length)return;
   try{
-    await fetch('/api/admin/bulk/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+    const res=await fetch('/api/admin/bulk/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+    if(!res.ok)throw new Error();
     ids.forEach(id=>{const li=document.querySelector('[data-id="'+id+'"]');if(li)li.remove();});
-    updateBulkBar();document.getElementById('toast').innerHTML='<div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">'+ids.length+' kiriman diterbitkan.</div>';
+    updateBulkBar();updateQueueCount();document.getElementById('toast').innerHTML='<div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">'+ids.length+' kiriman diterbitkan.</div>';
   }catch(e){document.getElementById('toast').innerHTML='<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Gagal menerbitkan.</div>';}
 }
 async function bulkRemove(){
   const ids=selIds();if(!ids.length)return;
   if(!confirm('Hapus '+ids.length+' kiriman?'))return;
   try{
-    await fetch('/api/admin/bulk/remove',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+    const res=await fetch('/api/admin/bulk/remove',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+    if(!res.ok)throw new Error();
     ids.forEach(id=>{const li=document.querySelector('[data-id="'+id+'"]');if(li)li.remove();});
-    updateBulkBar();document.getElementById('toast').innerHTML='<div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">'+ids.length+' kiriman dihapus.</div>';
+    updateBulkBar();updateQueueCount();document.getElementById('toast').innerHTML='<div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">'+ids.length+' kiriman dihapus.</div>';
   }catch(e){document.getElementById('toast').innerHTML='<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Gagal menghapus.</div>';}
 }
 `;
@@ -383,6 +388,7 @@ export interface AdminDataQuery {
   verified?: string;
   source?: string;
   limit?: number;
+  offset?: number;
 }
 
 function badge(text: string, cls: string): string {
@@ -446,12 +452,10 @@ function loadMore(){
   const p=new URLSearchParams(window.location.search);
   _offset+=20;p.set('offset',_offset);
   fetch('/api/admin/workshops?'+p).then(r=>r.text()).then(html=>{
-    if(!html.trim()){btn.remove();_busy=false;return;}
+    if(!html.trim()){btn.remove();return;}
     document.getElementById('data-list').insertAdjacentHTML('beforeend',html);
-    const next=_offset+20;
     if(html.split('<li').length-1<20)btn.remove();
-    _busy=false;
-  }).catch(()=>{_busy=false;});
+  }).catch(()=>{}).finally(()=>{_busy=false;});
 }
 function resetOffset(){_offset=0;}
 `;
