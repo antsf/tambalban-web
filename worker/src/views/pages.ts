@@ -18,31 +18,33 @@ const MAP_JS = `
 ${CLIENT_ESC}
 const svcLabel={'motorcycle_tyres':'Ban motor','car_tyres':'Ban mobil','truck_tyres':'Ban truk','tubeless_repair':'Tambal tubeless','vulcanizer':'Vulkanisir','balancing':'Balancing','spooring':'Spooring','roadside_service':'Servis panggilan'};
 function popup(w){
-  const h=['<div class="min-w-52 text-sm">'];
-  h.push('<div class="font-semibold text-slate-900">'+esc(w.name)+'</div>');
-  if(w.address||w.city) h.push('<div class="text-slate-600">'+esc(w.address||'')+esc(w.city?', '+w.city:'')+'</div>');
+  const h=['<div class="min-w-60 max-w-72 text-sm">'];
+  h.push('<div class="mb-1 text-base font-semibold text-slate-900">'+esc(w.name)+'</div>');
+  const loc=[w.address,w.district,w.city,w.province].filter(Boolean);
+  if(loc.length) h.push('<div class="text-slate-600">'+esc(loc.join(', '))+'</div>');
   if(w.opening_hours) h.push('<div class="mt-1 text-slate-500">Jam: '+esc(w.opening_hours)+'</div>');
   const svc=Object.keys(svcLabel).filter(k=>w[k]).map(k=>svcLabel[k]);
-  if(svc.length) h.push('<div class="mt-1 text-xs text-slate-500">'+esc(svc.join(', '))+'</div>');
-  h.push('<a class="mt-2 block rounded-lg border border-slate-300 px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-50" href="/workshops/'+esc(w.id)+'">Detail</a>');
-  if(w.whatsapp) h.push('<a class="mt-2 block rounded-lg bg-emerald-600 px-4 py-2 text-center font-medium text-white hover:bg-emerald-700" href="https://wa.me/'+esc(w.whatsapp.replace(/[^0-9]/g,''))+'">WhatsApp</a>');
-  if(w.phone) h.push('<a class="mt-2 block rounded-lg border border-slate-300 px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-50" href="tel:'+esc(w.phone)+'">Telepon</a>');
+  if(svc.length) h.push('<div class="mt-2 flex flex-wrap gap-1">'+svc.map(s=>'<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">'+esc(s)+'</span>').join('')+'</div>');
+  h.push('<div class="mt-2 flex flex-wrap gap-2">');
+  if(w.whatsapp) h.push('<a class="rounded-lg bg-emerald-600 px-3 py-1.5 text-center font-medium text-white hover:bg-emerald-700" href="https://wa.me/'+esc(w.whatsapp.replace(/[^0-9]/g,''))+'">WhatsApp</a>');
+  if(w.phone) h.push('<a class="rounded-lg border border-slate-300 px-3 py-1.5 text-center font-medium text-slate-700 hover:bg-slate-50" href="tel:'+esc(w.phone)+'">Telepon</a>');
+  if(w.website) h.push('<a class="rounded-lg border border-slate-300 px-3 py-1.5 text-center font-medium text-slate-700 hover:bg-slate-50" target="_blank" rel="noopener" href="'+esc(w.website)+'">Website</a>');
+  h.push('</div>');
   h.push('</div>');
   return h.join('');
 }
 function rowHtml(w){
   const city=esc(w.city||'');
   const tel=w.phone? '<a class="font-medium text-emerald-600 hover:underline" href="tel:'+esc(w.phone)+'">Telepon</a>':'';
-  return '<li class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">'
+  return '<li role="button" tabindex="0" onclick="focusMarker(\''+esc(w.id)+'\')" onkeydown="if(event.key===Enter||event.key===\' \'){event.preventDefault();focusMarker(\''+esc(w.id)+'\')}" class="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-emerald-400 hover:shadow-sm">'
+    +'<div class="flex items-center justify-between gap-3">'
     +'<div class="min-w-0">'
     +'<div class="truncate font-medium text-slate-900">'+esc(w.name)+'</div>'
     +(city?'<div class="truncate text-sm text-slate-500">'+city+'</div>':'')
     +'</div>'
     +'<div class="flex shrink-0 items-center gap-3 text-sm">'
-    +'<a class="font-medium text-slate-700 hover:underline" href="/workshops/'+esc(w.id)+'">Detail</a>'
-    +'<button type="button" onclick="focusMarker(\''+esc(w.id)+'\')" class="font-medium text-slate-700 hover:underline">Lihat di peta</button>'
     +tel
-    +'</div></li>';
+    +'</div></div></li>';
 }
 const map=L.map('map').setView([-2.5,118],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
