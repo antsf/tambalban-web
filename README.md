@@ -6,9 +6,7 @@ this site is just another front door onto the shared `tambal_ban` table.
 
 > **MID-REWRITE (2026-08).** This codebase was rewritten from Next.js to a lightweight stack
 > (HTML/CSS/JS + HTMX + Hono) on **Cloudflare Workers**, on the real shared table `tambal_ban`.
-> The live implementation is in **`worker/`**. The old Next.js code in `src/` still targets the
-> retired `workshops`/`workshop_submissions` design, does **not** work against the live DB, and is
-> deprecated scaffolding — reference only, to be deleted once the rewrite is finished.
+> The live implementation is in **`worker/`**. The old Next.js scaffolding has been deleted;
 > `SPEC.md` describes the target state and is accurate.
 
 ## Features

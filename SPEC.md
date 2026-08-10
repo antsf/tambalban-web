@@ -3,12 +3,11 @@
 Read `../soul.md` first for project philosophy. This document is the technical spec for the
 web app — the target state, plus the contract for anything added to it.
 
-> **STATUS: MID-REWRITE (2026-08).** The web app is being rebuilt on the real shared table
+> **STATUS: MID-REWRITE (2026-08).** The web app was rebuilt on the real shared table
 > `tambal_ban` and rewritten from Next.js to a lightweight stack (HTML/CSS/JS + HTMX + Hono,
-> deployed on Cloudflare Workers). The old Next.js code in `src/` still targets the retired
-> `workshops`/`workshop_submissions` design and does **not** work against the live database —
-> treat it as deprecated scaffolding. Everything below describes the **target state**. The
-> worker in `worker/` implements it; see [`CHANGELOG.md`](./CHANGELOG.md) for what shipped.
+> deployed on Cloudflare Workers). The old Next.js scaffolding in `src/` has been deleted.
+> Everything below describes the **target state**. The worker in `worker/` implements it; see
+> [`CHANGELOG.md`](./CHANGELOG.md) for what shipped.
 
 ---
 

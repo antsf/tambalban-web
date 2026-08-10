@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+- Old Next.js scaffolding (`src/`, `next.config.ts`, `vercel.json`, `next-env.d.ts`) — the
+  rewrite to the Hono/HTMX worker stack is complete; the live app lives entirely in `worker/`
+
 ### Added
 - Social-share card: links to the site now preview with a branded tire image
   (`og-image.png`) when shared on WhatsApp, Facebook, or Telegram, and iOS users
