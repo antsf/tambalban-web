@@ -232,7 +232,32 @@ export function workshopDetailPage(
       </div>
     </div>`;
 
-  return layout({ title: w.name, active: "", admin: session.admin, user: session.email ?? undefined, bodyClass: "flex min-h-screen flex-col" }, body);
+  const jsonLd = [
+    JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      name: w.name,
+      url: `https://tambalban.org/workshops/${w.id}`,
+      image: w.image_url ?? undefined,
+      ...(w.phone ? { telephone: w.phone } : {}),
+      ...(w.address || w.city || w.province
+        ? {
+            address: {
+              "@type": "PostalAddress",
+              streetAddress: w.address ?? undefined,
+              addressLocality: w.city ?? undefined,
+              addressRegion: w.province ?? undefined,
+              addressCountry: "ID",
+            },
+          }
+        : {}),
+      ...(w.lat !== undefined && w.lon !== undefined
+        ? { geo: { "@type": "GeoCoordinates", latitude: w.lat, longitude: w.lon } }
+        : {}),
+    }),
+  ];
+
+  return layout({ title: w.name, active: "", admin: session.admin, user: session.email ?? undefined, bodyClass: "flex min-h-screen flex-col", canonical: `https://tambalban.org/workshops/${w.id}`, jsonLd }, body);
 }
 
 export function loginPage(error?: string, session: { email: string | null; admin: boolean } = { email: null, admin: false }): string {

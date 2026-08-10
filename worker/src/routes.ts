@@ -177,6 +177,7 @@ app.get("/sitemap.xml", async (c) => {
     ),
     "</urlset>",
   ].join("\n");
+  c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
   return c.body(xml, 200, { "Content-Type": "application/xml" });
 });
 
@@ -192,6 +193,7 @@ app.get("/api/workshops", async (c) => {
       search,
       bbox: hasBbox ? { minLat: minLat!, maxLat: maxLat!, minLng: minLng!, maxLng: maxLng! } : undefined,
     });
+    c.header("Cache-Control", "public, max-age=60, s-maxage=300");
     return c.json(rows);
   } catch (e) {
     return c.json({ error: "Gagal memuat data" }, 502);
@@ -218,6 +220,7 @@ app.get("/api/geocode", async (c) => {
     });
     if (!res.ok) return c.json({ error: "Gagal geocode" }, 502);
     const data = (await res.json()) as Array<{ lat: string; lon: string; display_name?: string }>;
+    c.header("Cache-Control", "public, max-age=300, s-maxage=600");
     return c.json(data.map((r) => ({ lat: Number(r.lat), lon: Number(r.lon), display_name: r.display_name ?? null })));
   } catch {
     return c.json({ error: "Gagal geocode" }, 502);
@@ -295,8 +298,8 @@ app.post("/api/upload", async (c) => {
     const buf = await file.arrayBuffer();
     const url = await db.uploadImage(c.env, token, buf, file.type, ext);
     return c.json({ url });
-  } catch (e) {
-    return c.json({ error: `Gagal upload: ${e instanceof Error ? e.message : ""}` }, 500);
+  } catch {
+    return c.json({ error: "Gagal mengunggah foto. Coba lagi nanti." }, 500);
   }
 });
 

@@ -21,13 +21,17 @@ interface LayoutOptions {
   maps?: boolean;
   /** Meta description; a sensible default is used when omitted. */
   description?: string;
+  /** Canonical URL for this page (absolute); omitted = no canonical tag. */
+  canonical?: string;
+  /** Raw JSON-LD blocks injected in <head>. */
+  jsonLd?: string[];
 }
 
 const DEFAULT_DESCRIPTION =
   "Peta bengkel tambal ban terverifikasi di Indonesia. Cari tambalan ban terdekat dan kirim lokasi bengkel baru.";
 
 export function layout(opts: LayoutOptions, body: string): string {
-  const { title, active, admin = false, user, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION } = opts;
+  const { title, active, admin = false, user, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION, canonical, jsonLd = [] } = opts;
   const cdn = (src: string) => `<script src="${src}"></script>`;
   const inline = (code: string) => `<script>${code}</script>`;
 
@@ -86,6 +90,11 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="${esc(description)}" />
   ${admin ? `<meta name="robots" content="noindex" />` : ""}
+  ${canonical ? `<link rel="canonical" href="${esc(canonical)}" />` : ""}
+  <meta name="theme-color" content="#059669" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  ${jsonLd.map((j) => `<script type="application/ld+json">${j}</script>`).join("\n")}
   <title>${esc(title)} · TambalBan</title>
   <link rel="stylesheet" href="/tailwind.css" />
   ${maps ? `<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />` : ""}
