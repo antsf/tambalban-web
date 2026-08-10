@@ -1,3 +1,5 @@
+import { SITE_URL } from "../lib/site";
+
 export function esc(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
   return String(value)
@@ -34,7 +36,7 @@ export function layout(opts: LayoutOptions, body: string): string {
   const { title, active, admin = false, user, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION, canonical, jsonLd = [] } = opts;
   const cdn = (src: string) => `<script src="${src}"></script>`;
   const inline = (code: string) => `<script>${code}</script>`;
-  const pageUrl = canonical ?? "https://tambalban.org/";
+  const pageUrl = canonical ?? `${SITE_URL}/`;
   const pageTitle = `${title} · TambalBan`;
 
   const navLink = (href: string, label: string, key: string, extraClass = "") =>
@@ -102,7 +104,7 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
   <meta property="og:title" content="${esc(pageTitle)}" />
   <meta property="og:description" content="${esc(description)}" />
   <meta property="og:url" content="${esc(pageUrl)}" />
-  <meta property="og:image" content="https://tambalban.org/og-image.png" />
+  <meta property="og:image" content="${SITE_URL}/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="TambalBan — peta bengkel tambal ban terverifikasi di Indonesia" />

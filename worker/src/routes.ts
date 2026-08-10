@@ -33,6 +33,7 @@ import {
 } from "./views/pages";
 import { errorToast, successToast } from "./views/layout";
 import { resizeUploadImage } from "./lib/image";
+import { SITE_URL } from "./lib/site";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -174,7 +175,7 @@ app.get("/sitemap.xml", async (c) => {
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...urls.map(
       (u) =>
-        `  <url><loc>https://tambalban.org${u.path}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`,
+        `  <url><loc>${SITE_URL}${u.path}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`,
     ),
     "</urlset>",
   ].join("\n");

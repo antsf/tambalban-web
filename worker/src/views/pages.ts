@@ -1,4 +1,5 @@
 import { esc, layout, errorToast, field, checkbox } from "./layout";
+import { SITE_URL } from "../lib/site";
 import type { Workshop, UnverifiedSubmission, AdminUser, Review } from "../lib/supabase";
 
 const SERVICE_LABELS: Array<[keyof Pick<Workshop, "motorcycle_tyres" | "car_tyres" | "truck_tyres" | "tubeless_repair" | "vulcanizer" | "balancing" | "spooring" | "roadside_service">, string]> = [
@@ -237,7 +238,7 @@ export function workshopDetailPage(
       "@context": "https://schema.org",
       "@type": "LocalBusiness",
       name: w.name,
-      url: `https://tambalban.org/workshops/${w.id}`,
+      url: `${SITE_URL}/workshops/${w.id}`,
       image: w.image_url ?? undefined,
       ...(w.phone ? { telephone: w.phone } : {}),
       ...(w.address || w.city || w.province
@@ -257,7 +258,7 @@ export function workshopDetailPage(
     }),
   ];
 
-  return layout({ title: w.name, active: "", admin: session.admin, user: session.email ?? undefined, bodyClass: "flex min-h-screen flex-col", canonical: `https://tambalban.org/workshops/${w.id}`, jsonLd }, body);
+  return layout({ title: w.name, active: "", admin: session.admin, user: session.email ?? undefined, bodyClass: "flex min-h-screen flex-col", canonical: `${SITE_URL}/workshops/${w.id}`, jsonLd }, body);
 }
 
 export function loginPage(error?: string, session: { email: string | null; admin: boolean } = { email: null, admin: false }): string {
