@@ -17,7 +17,7 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
       `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
       `Permissions-Policy`, CSP (allow unpkg untuk Leaflet/HTMX, tile OSM, supabase `img-src`;
       `connect-src 'self'` karena Nominatim di-proxy via `/api/geocode`).
-- [ ] **Turnstile** di `/submit` — belum ada. Rate-limit submit sudah terpasang (in-memory, per-instance).
+- [ ] **Turnstile** di `/submit` — belum ada (butuh setup akun Cloudflare, item prioritas #5). Rate-limit submit sudah terpasang (in-memory, per-instance).
 - [x] **Service-role key server-only** — hanya dipakai `worker/src/lib/supabase.ts` dari handler
       `/api/admin/*` setelah `isAdmin()`. Aman.
 - [x] **Honeypot field** di form submit — terpasang (`hp_company` hidden input + penolakan di
@@ -27,15 +27,15 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
 - [x] **Validasi Indonesia bounds + Zod** di setiap route — `worker/src/lib/validation.ts`. Jaga tetap.
 
 ## 2. Kinerja (Core Web Vitals)
-- [ ] Audit live via skill `web-perf`/Lighthouse — ada `.github/workflows/lighthouse.yml` +
-      `lighthouserc.json`, belum dijalankan terakhir.
+- [x] Audit live via Lighthouse — `.github/workflows/lighthouse.yml` + `lighthouserc.json`,
+      hijau (run terakhir 2026-08-10: `/` & `/submit`; `/login` di-drop karena noindex by design).
 - [x] **Font** — tidak ada font eksternal (system font stack Tailwind). 0 request font. Konsisten.
 - [ ] **Resize foto** saat upload — file asli disimpan, belum ada thumbnail/transform server-side.
-- [ ] **Caching GET**: `/api/workshops`, `/api/geocode`, `sitemap.xml` — belum ada `Cache-Control`.
-      Dampak terbesar: bbox + viewport statis bisa pakai cache pendek.
+- [x] **Caching GET**: `Cache-Control` di `routes.ts` (`/api/workshops` max-age=3600 s-maxage=86400,
+      `/api/geocode` max-age=60 s-maxage=300, `sitemap.xml` max-age=300 s-maxage=600).
 - [~] **Leaflet** — via CDN (`leaflet.js`), cuma dimuat di `/` dan `/submit` (`maps` flag di
       `layout.ts`). Bukan bundle. Pertimbangkan juga cache `tailwind.css`.
-- [~] **viewport** sudah ada (`layout.ts:86`); **`theme-color`** belum.
+- [x] **viewport** sudah ada (`layout.ts:86`); **`theme-color`** sudah ada (`layout.ts:94`).
 
 ## 3. Aksesibilitas
 - [~] **Map + fallback daftar** — list sudah keyboard-accessible (`role="button"`, `tabindex=0`,
@@ -51,10 +51,10 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
       `/admin`, `/login`, `/register`).
       ⚠️ `robots.txt` menunjuk sitemap ke `tambalban.org`; deploy live sementara di
       `tambalban-web.tambalban.workers.dev` — pastikan domain kustom sudah dipetakan.
-- [ ] **JSON-LD LocalBusiness** di halaman detail (`pages.ts` `workshopDetailPage`).
-- [ ] **Canonical URL** — belum ada.
-- [ ] **manifest.json / apple-touch-icon / og-image** — `worker/public/` cuma `robots.txt` +
-      `tailwind.css`. (favicon lama di `src/app/` = Next.js deprecated).
+- [x] **JSON-LD LocalBusiness** di halaman detail (`pages.ts` `workshopDetailPage`).
+- [x] **Canonical URL** — dipasang di halaman detail (`layout.ts:93`, `pages.ts:260`).
+- [~] **manifest.webmanifest + icon.svg** — sudah ada di `worker/public/`;
+      **og-image / apple-touch-icon** belum.
 
 ## 5. Kualitas Kode & Testing
 - [~] **Unit tests (Vitest)** — ada `admin-auth`, `rate-limit`, `validation` + **`routes.test.ts`**
@@ -62,7 +62,8 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
       Masih bisa diperluas ke geocode/sitemap.
 - [x] **E2E smoke** — `worker/test/e2e.mjs`. ✔ 84 check.
 - [x] **TS strict**, tanpa `any` tanpa `// TODO`.
-- [ ] **CI pipeline** (typecheck + vitest + build) — `.github/workflows/` cuma `lighthouse.yml`.
+- [x] **CI pipeline** (typecheck + vitest + build + CSS tracked) — `.github/workflows/ci.yml`,
+      hijau; `.github/workflows/lighthouse.yml` juga hijau.
 - [n/a] Component tests vote/photo — tidak ada React; ditangkap E2E.
 
 ## 6. Operasional / Reliability
