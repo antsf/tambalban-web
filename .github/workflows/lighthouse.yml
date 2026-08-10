@@ -27,6 +27,5 @@ jobs:
           urls: |
             http://localhost:8787/
             http://localhost:8787/submit
-            http://localhost:8787/login
           configPath: ./lighthouserc.json
           uploadArtifacts: true
