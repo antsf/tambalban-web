@@ -34,6 +34,8 @@ export function layout(opts: LayoutOptions, body: string): string {
   const { title, active, admin = false, user, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION, canonical, jsonLd = [] } = opts;
   const cdn = (src: string) => `<script src="${src}"></script>`;
   const inline = (code: string) => `<script>${code}</script>`;
+  const pageUrl = canonical ?? "https://tambalban.org/";
+  const pageTitle = `${title} · TambalBan`;
 
   const navLink = (href: string, label: string, key: string, extraClass = "") =>
     `<a href="${href}" class="rounded-lg px-3 py-1.5 ${active === key ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"} ${extraClass}">${label}</a>`;
@@ -93,7 +95,18 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
   ${canonical ? `<link rel="canonical" href="${esc(canonical)}" />` : ""}
   <meta name="theme-color" content="#059669" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="TambalBan" />
+  <meta property="og:title" content="${esc(pageTitle)}" />
+  <meta property="og:description" content="${esc(description)}" />
+  <meta property="og:url" content="${esc(pageUrl)}" />
+  <meta property="og:image" content="https://tambalban.org/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="TambalBan — peta bengkel tambal ban terverifikasi di Indonesia" />
+  <meta name="twitter:card" content="summary_large_image" />
   ${jsonLd.map((j) => `<script type="application/ld+json">${j}</script>`).join("\n")}
   <title>${esc(title)} · TambalBan</title>
   <link rel="stylesheet" href="/tailwind.css" />

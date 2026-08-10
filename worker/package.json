@@ -12,6 +12,7 @@
     "test:e2e": "node test/e2e.mjs"
   },
   "dependencies": {
+    "@cf-wasm/photon": "^0.4.0",
     "hono": "^4.6.0",
     "zod": "^4.0.0"
   },

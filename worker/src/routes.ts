@@ -32,6 +32,7 @@ import {
   adminReviewsPage,
 } from "./views/pages";
 import { errorToast, successToast } from "./views/layout";
+import { resizeUploadImage } from "./lib/image";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -293,10 +294,15 @@ app.post("/api/upload", async (c) => {
   const allowed = ["image/jpeg", "image/png", "image/webp"];
   if (!allowed.includes(file.type)) return c.json({ error: "Format tidak didukung. Gunakan JPG, PNG, atau WebP." }, 400);
   if (file.size > 5 * 1024 * 1024) return c.json({ error: "Ukuran maksimal 5MB." }, 400);
-  const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
   try {
-    const buf = await file.arrayBuffer();
-    const url = await db.uploadImage(c.env, token, buf, file.type, ext);
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let resized: ArrayBuffer;
+    try {
+      resized = resizeUploadImage(buf);
+    } catch {
+      return c.json({ error: "Gambar tidak valid atau rusak. Gunakan JPG, PNG, atau WebP." }, 400);
+    }
+    const url = await db.uploadImage(c.env, token, resized, "image/webp", "webp");
     return c.json({ url });
   } catch {
     return c.json({ error: "Gagal mengunggah foto. Coba lagi nanti." }, 500);

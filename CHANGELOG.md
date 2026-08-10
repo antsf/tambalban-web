@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Social-share card: links to the site now preview with a branded tire image
+  (`og-image.png`) when shared on WhatsApp, Facebook, or Telegram, and iOS users
+  adding the site to their home screen get a matching app icon
+- Photo uploads are downscaled and re-encoded to WebP on the server (longest edge
+  capped at 1600px) before storing — smaller files mean faster uploads on slow
+  connections and less storage
 - Success toasts after a submission (`/?submitted=1`) and after account creation
   (`/login?registered=1`) — the HTMX redirect previously swallowed the confirmation message
 - E2E smoke suite (`npm run test:e2e`): 80 checks across pages, auth flow, workshops API,

@@ -3,6 +3,7 @@ import { app } from "./routes";
 import * as db from "./lib/supabase";
 import type { Env } from "./lib/env";
 import { setSessionCookie } from "./lib/admin-auth";
+import { resizeUploadImage } from "./lib/image";
 
 vi.mock("./lib/supabase", () => ({
   fetchVerifiedWorkshops: vi.fn(),
@@ -22,6 +23,10 @@ vi.mock("./lib/supabase", () => ({
 vi.mock("./lib/supabase-auth", () => ({
   register: vi.fn(),
   login: vi.fn(),
+}));
+
+vi.mock("./lib/image", () => ({
+  resizeUploadImage: vi.fn(() => new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer as ArrayBuffer),
 }));
 
 const env: Env = {
@@ -231,11 +236,48 @@ describe("submissions", () => {
 });
 
 describe("image upload", () => {
+  it("resizes to webp before uploading", async () => {
+    vi.mocked(db.uploadImage).mockResolvedValue("https://example.supabase.co/storage/v1/object/public/workshops/x.webp");
+    const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
+    const form = new FormData();
+    form.append("file", new File([new Uint8Array(8)], "photo.png", { type: "image/png" }));
+    const res = await app.request(
+      "/api/upload",
+      { method: "POST", headers: { Cookie: cookie }, body: form },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ url: "https://example.supabase.co/storage/v1/object/public/workshops/x.webp" });
+    const resizeCall = vi.mocked(resizeUploadImage);
+    expect(resizeCall).toHaveBeenCalledTimes(1);
+    const uploaded = vi.mocked(db.uploadImage).mock.calls[0];
+    expect(uploaded[2]).toBeInstanceOf(ArrayBuffer);
+    expect(uploaded[3]).toBe("image/webp");
+    expect(uploaded[4]).toBe("webp");
+  });
+
+  it("rejects an undecodable image as a 400 client error", async () => {
+    vi.mocked(resizeUploadImage).mockImplementation(() => {
+      throw new Error("bad image");
+    });
+    const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
+    const form = new FormData();
+    form.append("file", new File([new Uint8Array(8)], "x.jpg", { type: "image/jpeg" }));
+    const res = await app.request(
+      "/api/upload",
+      { method: "POST", headers: { Cookie: cookie }, body: form },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(db.uploadImage).not.toHaveBeenCalled();
+  });
+
   it("does not leak the underlying upload error to the client", async () => {
+    vi.mocked(resizeUploadImage).mockReturnValue(new Uint8Array([9]).buffer as ArrayBuffer);
     vi.mocked(db.uploadImage).mockRejectedValue(new Error("supabase-storage token leak"));
     const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
     const form = new FormData();
-    form.append("file", new File([""], "x.jpg", { type: "image/jpeg" }));
+    form.append("file", new File([new Uint8Array(8)], "x.jpg", { type: "image/jpeg" }));
     const res = await app.request(
       "/api/upload",
       { method: "POST", headers: { Cookie: cookie }, body: form },
