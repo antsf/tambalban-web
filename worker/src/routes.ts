@@ -318,6 +318,8 @@ app.post("/api/submissions", async (c) => {
   } catch {
     return c.html(errorToast("Permintaan tidak valid"), 400);
   }
+  const hp = body && typeof body === "object" ? (body as Record<string, unknown>).hp_company : "";
+  if (typeof hp === "string" && hp.trim().length > 0) return c.html(errorToast("Permintaan tidak valid"), 400);
   const parsed = submissionSchema.safeParse(body);
   if (!parsed.success) return c.html(errorToast(parsed.error.issues[0]?.message ?? "Input tidak valid"), 400);
 
@@ -347,8 +349,8 @@ app.post("/api/submissions", async (c) => {
   };
   try {
     await db.insertSubmission(c.env, token, row);
-  } catch (e) {
-    return c.html(errorToast(`Gagal menyimpan kiriman. ${e instanceof Error ? e.message : ""}`), 502);
+  } catch {
+    return c.html(errorToast("Gagal menyimpan kiriman. Coba lagi nanti."), 502);
   }
   c.header("HX-Redirect", "/?submitted=1");
   return c.html(successToast("Kiriman diterima. Menunggu peninjauan admin."));

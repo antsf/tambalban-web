@@ -117,7 +117,7 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
 }
 
 export function errorToast(message: string): string {
-  return `<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">${esc(message)}</div>`;
+  return `<div role="alert" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">${esc(message)}</div>`;
 }
 
 export function successToast(message: string): string {

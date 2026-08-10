@@ -344,6 +344,10 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
           <input type="hidden" id="lat" name="lat" required />
           <input type="hidden" id="lon" name="lon" required />
           <input type="hidden" id="image_url" name="image_url" />
+          <div class="sr-only" aria-hidden="true">
+            <label for="hp_company">Nama perusahaan</label>
+            <input id="hp_company" name="hp_company" type="text" tabindex="-1" autocomplete="off" />
+          </div>
           ${field("name", "Nama bengkel", "", { placeholder: "Tambah Ban Jaya", required: true, autocomplete: "organization" })}
           ${field("address", "Alamat", "", { placeholder: "Jl. Contoh No. 1", autocomplete: "street-address" })}
           <div class="grid gap-4 sm:grid-cols-2">

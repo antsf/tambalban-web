@@ -20,9 +20,10 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
 - [ ] **Turnstile** di `/submit` — belum ada. Rate-limit submit sudah terpasang (in-memory, per-instance).
 - [x] **Service-role key server-only** — hanya dipakai `worker/src/lib/supabase.ts` dari handler
       `/api/admin/*` setelah `isAdmin()`. Aman.
-- [ ] **Honeypot field** di form submit — belum ada.
-- [ ] **Jangan bocorkan `error.message` mentah ke client** — kebocoran ditemukan di
-      `worker/src/routes.ts:299` (`Gagal upload: ${e.message}`). Ganti dengan pesan generik.
+- [x] **Honeypot field** di form submit — terpasang (`hp_company` hidden input + penolakan di
+      `routes.ts` `/api/submissions`).
+- [x] **Jangan bocorkan `error.message` mentah ke client** — ditutup di `routes.ts` `/api/upload`
+      dan `/api/submissions` (ditemukan & diperbaiki lewat route test 2026-08-10).
 - [x] **Validasi Indonesia bounds + Zod** di setiap route — `worker/src/lib/validation.ts`. Jaga tetap.
 
 ## 2. Kinerja (Core Web Vitals)
@@ -40,8 +41,9 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
 - [~] **Map + fallback daftar** — list sudah keyboard-accessible (`role="button"`, `tabindex=0`,
       Enter/Space, `pages.ts` `rowHtml`) dan membuka popup; peta sendiri tidak keyboard-draggable,
       daftar jadi fallback. Cukup memenuhi.
-- [ ] `prefers-reduced-motion` — belum ada animasi signifikan, tapi tak ada media query-nya.
-- [~] **Error form** — via `<div id="toast" role="status">`; belum `role="alert"`/`aria-describedby`.
+- [x] `prefers-reduced-motion` — sudah ada media query di `worker/src/styles/input.css`.
+- [~] **Error form** — `errorToast` punya `role="alert"` sekarang; form field belum
+      `aria-describedby`.
 - [ ] Kontras & label: status badge, mobile nav — perlu lint cepat.
 
 ## 4. SEO & Metadata
@@ -55,9 +57,10 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
       `tailwind.css`. (favicon lama di `src/app/` = Next.js deprecated).
 
 ## 5. Kualitas Kode & Testing
-- [~] **Unit tests (Vitest)** — ada `admin-auth`, `rate-limit`, `validation`. Belum ada route test
-      untuk `worker/src/routes.ts`.
-- [x] **E2E smoke** — `worker/test/e2e.mjs`. ✔
+- [~] **Unit tests (Vitest)** — ada `admin-auth`, `rate-limit`, `validation` + **`routes.test.ts`**
+      (17 test: admin gate, publish/remove, bulk UUID filter, submissions, upload no-leak).
+      Masih bisa diperluas ke geocode/sitemap.
+- [x] **E2E smoke** — `worker/test/e2e.mjs`. ✔ 84 check.
 - [x] **TS strict**, tanpa `any` tanpa `// TODO`.
 - [ ] **CI pipeline** (typecheck + vitest + build) — `.github/workflows/` cuma `lighthouse.yml`.
 - [n/a] Component tests vote/photo — tidak ada React; ditangkap E2E.
@@ -78,7 +81,8 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
 - [x] `maxLength` input selaras schema Zod.
 
 ## Prioritas (kalau mau dikerjakan)
-1. Tutup kebocoran `error.message` di `routes.ts:299`.
-2. `Cache-Control` pada GET `/api/workshops`.
-3. CI pipeline (typecheck + vitest + build).
-4. JSON-LD + canonical + manifest di halaman detail.
+1. ~~Tutup kebocoran `error.message` di routes~~ → **selesai** (route test menjaganya).
+2. ~~`Cache-Control` pada GET `/api/workshops`~~ → **selesai**.
+3. ~~CI pipeline (typecheck + vitest + build)~~ → **selesai**.
+4. ~~JSON-LD + canonical + manifest di halaman detail~~ → **selesai**.
+5. Turnstile di `/submit` (butuh setup akun Cloudflare).
