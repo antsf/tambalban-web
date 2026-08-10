@@ -17,18 +17,9 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Wrangler
-        run: npm install -g wrangler
-
       - name: Build CSS
         working-directory: worker
         run: npm install && npm run build:css
-
-      - name: Start local server
-        run: |
-          cd worker
-          npx wrangler dev --port 8787 &
-          sleep 5
 
       - name: Run Lighthouse
         uses: treosh/lighthouse-ci-action@v12
