@@ -61,6 +61,28 @@ describe("submissionSchema", () => {
       expect(r.data.whatsapp).toBeUndefined();
     }
   });
+
+  it("accepts an http(s) website", () => {
+    const r = submissionSchema.safeParse({ ...validSubmission, website: "https://example.com" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.website).toBe("https://example.com");
+  });
+
+  it("rejects a javascript: URI in website", () => {
+    const r = submissionSchema.safeParse({ ...validSubmission, website: "javascript:alert(1)" });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a javascript: URI in image_url", () => {
+    const r = submissionSchema.safeParse({ ...validSubmission, image_url: "javascript:alert(1)" });
+    expect(r.success).toBe(false);
+  });
+
+  it("treats a blank website as undefined, not a validation failure", () => {
+    const r = submissionSchema.safeParse({ ...validSubmission, website: "" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.website).toBeUndefined();
+  });
 });
 
 describe("loginSchema", () => {

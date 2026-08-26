@@ -24,6 +24,18 @@ const optionalText = (max: number) =>
     .transform((v) => (v === "" ? undefined : v))
     .optional();
 
+/** Like optionalText, but rejects anything not an http(s) URL — blocks javascript: and other schemes. */
+const optionalHttpUrl = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((v) => (v === "" ? undefined : v))
+    .optional()
+    .refine((v) => v === undefined || /^https?:\/\//i.test(v), {
+      message: "URL harus dimulai dengan http:// atau https://",
+    });
+
 export const submissionSchema = z
   .object({
     name: z.string().trim().min(2, "Nama minimal 2 karakter").max(200),
@@ -35,10 +47,10 @@ export const submissionSchema = z
     district: optionalText(100),
     phone: optionalText(30),
     whatsapp: optionalText(30),
-    website: optionalText(200),
+    website: optionalHttpUrl(200),
     instagram: optionalText(100),
     opening_hours: optionalText(100),
-    image_url: optionalText(500),
+    image_url: optionalHttpUrl(500),
     motorcycle_tyres: z.coerce.boolean().optional().default(false),
     car_tyres: z.coerce.boolean().optional().default(false),
     truck_tyres: z.coerce.boolean().optional().default(false),
