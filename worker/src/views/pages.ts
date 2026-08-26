@@ -37,7 +37,7 @@ function popup(w){
 function rowHtml(w){
   const city=esc(w.city||'');
   const tel=w.phone? '<a class="font-medium text-emerald-600 hover:underline" href="tel:'+esc(w.phone)+'">Telepon</a>':'';
-  return '<li role="button" tabindex="0" onclick="focusMarker(\''+esc(w.id)+'\')" onkeydown="if(event.key===Enter||event.key===\' \'){event.preventDefault();focusMarker(\''+esc(w.id)+'\')}" class="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-emerald-400 hover:shadow-sm">'
+  return '<li role="button" tabindex="0" onclick="focusMarker(\''+esc(w.id)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();focusMarker(\''+esc(w.id)+'\')}" class="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-emerald-400 hover:shadow-sm">'
     +'<div class="flex items-center justify-between gap-3">'
     +'<div class="min-w-0">'
     +'<div class="truncate font-medium text-slate-900">'+esc(w.name)+'</div>'
@@ -88,13 +88,31 @@ ${CLIENT_ESC}
 const map=L.map('pick').setView([-6.2,106.8],11);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 let marker;
+function inIndonesia(lat,lon){return lat>=-11&&lat<=6&&lon>=95&&lon<=141;}
 map.on('click',function(e){
+  const lat=e.latlng.lat, lon=e.latlng.lng;
+  if(!inIndonesia(lat,lon)){
+    document.getElementById('pick-note').textContent='Titik di luar Indonesia. Pilih lokasi di dalam wilayah Indonesia.';
+    return;
+  }
   if(marker) map.removeLayer(marker);
-  marker=L.marker([e.latlng.lat,e.latlng.lng]).addTo(map);
-  document.getElementById('lat').value=e.latlng.lat.toFixed(6);
-  document.getElementById('lon').value=e.latlng.lng.toFixed(6);
-  document.getElementById('pick-note').textContent='Titik dipilih: '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);
+  marker=L.marker([lat,lon]).addTo(map);
+  document.getElementById('lat').value=lat.toFixed(6);
+  document.getElementById('lon').value=lon.toFixed(6);
+  document.getElementById('pick-note').textContent='Titik dipilih: '+lat.toFixed(5)+', '+lon.toFixed(5);
 });
+function syncPinFromInputs(){
+  const lat=parseFloat(document.getElementById('lat').value), lon=parseFloat(document.getElementById('lon').value);
+  if(isNaN(lat)||isNaN(lon)) return;
+  if(!inIndonesia(lat,lon)){
+    document.getElementById('pick-note').textContent='Koordinat di luar Indonesia.';
+    return;
+  }
+  if(marker) map.removeLayer(marker);
+  marker=L.marker([lat,lon]).addTo(map);
+  map.setView([lat,lon],15);
+  document.getElementById('pick-note').textContent='Titik dipilih: '+lat.toFixed(5)+', '+lon.toFixed(5)+' (manual)';
+}
 async function geocode(){
   const q=document.getElementById('addr').value.trim();
   if(q.length<3) return;
@@ -104,7 +122,7 @@ async function geocode(){
     const rows=await (await fetch('/api/geocode?'+p)).json();
     if(!rows.length){document.getElementById('geocode-msg').textContent='Tidak ditemukan.';return;}
     const r=rows[0];
-    if(r.lat<-11||r.lat>6||r.lon<95||r.lon>141){
+    if(!inIndonesia(r.lat,r.lon)){
       document.getElementById('geocode-msg').textContent='Hasil di luar Indonesia. Coba kata kunci yang lebih spesifik.';
       return;
     }
@@ -124,7 +142,7 @@ function useMyLocation(){
   navigator.geolocation.getCurrentPosition(
     function(pos){
       const lat=pos.coords.latitude, lon=pos.coords.longitude;
-      if(lat<-11||lat>6||lon<95||lon>141){
+      if(!inIndonesia(lat,lon)){
         msg.textContent='Lokasi Anda di luar Indonesia. Silakan cari alamat atau klik peta.';
         return;
       }
@@ -342,8 +360,18 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
           <p id="geocode-msg" aria-live="polite" class="mt-1 text-xs text-slate-500"></p>
         </div>
         <form hx-post="/api/submissions" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4">
-          <input type="hidden" id="lat" name="lat" required />
-          <input type="hidden" id="lon" name="lon" required />
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="lat" class="mb-1 block text-sm font-medium text-slate-700">Latitude</label>
+              <input id="lat" name="lat" type="number" step="any" min="-11" max="6" required oninput="syncPinFromInputs()"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+            </div>
+            <div>
+              <label for="lon" class="mb-1 block text-sm font-medium text-slate-700">Longitude</label>
+              <input id="lon" name="lon" type="number" step="any" min="95" max="141" required oninput="syncPinFromInputs()"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+            </div>
+          </div>
           <input type="hidden" id="image_url" name="image_url" />
           <div class="sr-only" aria-hidden="true">
             <label for="hp_company">Nama perusahaan</label>
@@ -355,8 +383,8 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
             ${field("city", "Kota / Kabupaten", "", { autocomplete: "address-level2" })}
             ${field("province", "Provinsi", "", { autocomplete: "address-level1" })}
             ${field("district", "Kecamatan", "")}
-            ${field("phone", "No. telepon", "", { autocomplete: "tel" })}
-            ${field("whatsapp", "WhatsApp", "", { hint: "Format 08xx (tanpa spasi).", autocomplete: "tel" })}
+            ${field("phone", "No. telepon", "", { type: "tel", autocomplete: "tel" })}
+            ${field("whatsapp", "WhatsApp", "", { type: "tel", hint: "Format 08xx (tanpa spasi).", autocomplete: "tel" })}
             ${field("opening_hours", "Jam buka", "", { placeholder: "07:00–21:00 / 24 jam" })}
           </div>
           <div>
@@ -404,7 +432,7 @@ function submissionCard(row: UnverifiedSubmission): string {
   ]
     .filter(Boolean)
     .join(" · ");
-  return `<li data-id="${esc(row.id)}" class="rounded-xl border border-slate-200 bg-white p-4">
+  return `<li id="wksp-${esc(row.id)}" data-id="${esc(row.id)}" class="rounded-xl border border-slate-200 bg-white p-4">
     <div class="flex items-start gap-3">
       <input type="checkbox" class="q-cb mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-100" data-id="${esc(row.id)}" onchange="updateBulkBar()" aria-label="Pilih ${esc(row.name)}" />
       <div class="min-w-0 flex-1">
@@ -417,9 +445,9 @@ function submissionCard(row: UnverifiedSubmission): string {
           </div>
           <div class="flex gap-2">
             ${link}
-            <button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML" aria-label="Terbitkan ${esc(row.name)}"
+            <button hx-post="/api/admin/submissions/${row.id}/publish" hx-swap="none" aria-label="Terbitkan ${esc(row.name)}"
               class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Terbitkan</button>
-            <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?" aria-label="Hapus ${esc(row.name)}"
+            <button hx-post="/api/admin/submissions/${row.id}/remove" hx-swap="none" hx-confirm="Hapus ${esc(row.name)}?" aria-label="Hapus ${esc(row.name)}"
               class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
           </div>
         </div>
@@ -512,7 +540,7 @@ function adminDataRow(row: Workshop): string {
   ]
     .filter(Boolean)
     .join(" · ");
-  return `<li class="rounded-xl border border-slate-200 bg-white p-4">
+  return `<li id="wksp-${esc(row.id)}" class="rounded-xl border border-slate-200 bg-white p-4">
     <div class="flex flex-wrap items-start justify-between gap-2">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">
@@ -529,9 +557,9 @@ function adminDataRow(row: Workshop): string {
         ${link}
         ${row.verified
           ? ""
-          : `<button hx-post="/api/admin/submissions/${row.id}/publish" hx-target="closest li" hx-swap="outerHTML" aria-label="Terbitkan ${esc(row.name)}"
+          : `<button hx-post="/api/admin/submissions/${row.id}/publish" hx-swap="none" aria-label="Terbitkan ${esc(row.name)}"
               class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Terbitkan</button>`}
-        <button hx-post="/api/admin/submissions/${row.id}/remove" hx-target="closest li" hx-swap="outerHTML" hx-confirm="Hapus ${esc(row.name)}?" aria-label="Hapus ${esc(row.name)}"
+        <button hx-post="/api/admin/submissions/${row.id}/remove" hx-swap="none" hx-confirm="Hapus ${esc(row.name)}?" aria-label="Hapus ${esc(row.name)}"
           class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
       </div>
     </div>

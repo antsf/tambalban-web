@@ -109,6 +109,28 @@ describe("admin gate (publish/remove state machine)", () => {
     expect(db.removeSubmission).toHaveBeenCalledWith(env, UUID);
   });
 
+  it("rejects publish with a malformed ID without touching the DB", async () => {
+    const cookie = await adminCookie();
+    const res = await app.request(
+      "/api/admin/submissions/not-a-uuid/publish",
+      { method: "POST", headers: { Cookie: cookie } },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(db.publishSubmission).not.toHaveBeenCalled();
+  });
+
+  it("rejects remove with a malformed ID without touching the DB", async () => {
+    const cookie = await adminCookie();
+    const res = await app.request(
+      "/api/admin/submissions/not-a-uuid/remove",
+      { method: "POST", headers: { Cookie: cookie } },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(db.removeSubmission).not.toHaveBeenCalled();
+  });
+
   it("forwards DB failures as a 502 without leaking error text", async () => {
     vi.mocked(db.publishSubmission).mockRejectedValue(new Error("service_role leaked detail"));
     const cookie = await adminCookie();

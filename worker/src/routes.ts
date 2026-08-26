@@ -185,6 +185,19 @@ app.get("/sitemap.xml", async (c) => {
 
 // ---------- public API ----------
 
+/**
+ * GET /api/workshops
+ *
+ * Public. Returns verified workshops within a bbox and/or matching a name/city search.
+ * Reads tambal_ban with verified=eq.true only — never unverified rows.
+ *
+ * @query search - Optional name/city search (ilike).
+ * @query minLat,maxLat,minLng,maxLng - Optional viewport bounds; all four required together.
+ * @returns 200 - Workshop[] (bare array)
+ * @returns 400 - { error } - Invalid bbox params
+ * @returns 502 - { error } - Supabase failure
+ * @sideeffect None (read-only)
+ */
 app.get("/api/workshops", async (c) => {
   const parsed = bboxSchema.safeParse(c.req.query());
   if (!parsed.success) return c.json({ error: "Parameter tidak valid" }, 400);
@@ -202,6 +215,20 @@ app.get("/api/workshops", async (c) => {
   }
 });
 
+/**
+ * GET /api/geocode
+ *
+ * Public, rate-limited proxy to OpenStreetMap Nominatim (Indonesia-scoped, max 5 results).
+ * Never call Nominatim directly from the client — this proxy sets the required User-Agent
+ * and enforces the per-IP rate limit.
+ *
+ * @query q - Required, 3-200 chars.
+ * @returns 200 - { lat, lon, display_name }[] (bare array)
+ * @returns 400 - { error } - q missing/too short
+ * @returns 429 - { error } - rate limit exceeded (10/60s/IP)
+ * @returns 502 - { error } - Nominatim unreachable/erroring
+ * @sideeffect None
+ */
 app.get("/api/geocode", async (c) => {
   const ip = clientIp(c.req.raw);
   if (!rateLimit(`geo:${ip}`, 10)) return c.json({ error: "Terlalu banyak permintaan" }, 429);
@@ -231,6 +258,18 @@ app.get("/api/geocode", async (c) => {
 
 // ---------- user auth ----------
 
+/**
+ * POST /api/auth/register
+ *
+ * Public. Creates a contributor account via Supabase Auth — same user store as the
+ * Android app. Returns an HTML toast fragment, not JSON.
+ *
+ * @body { email, password } - loginSchema
+ * @returns 200 - HTML toast; sets tb_access_token cookie + HX-Redirect: /submit,
+ *   or HX-Redirect: /login?registered=1 if email confirmation is required
+ * @returns 400 - HTML error toast - validation failure or Supabase Auth error
+ * @sideeffect Inserts a row into auth.users (shared with the Android app)
+ */
 app.post("/api/auth/register", async (c) => {
   let body: unknown;
   try {
@@ -251,6 +290,16 @@ app.post("/api/auth/register", async (c) => {
   return c.html(successToast("Akun dibuat. Cek email untuk konfirmasi, lalu masuk."));
 });
 
+/**
+ * POST /api/auth/login
+ *
+ * Public. Logs in an existing contributor via Supabase Auth. HTML toast fragment.
+ *
+ * @body { email, password } - loginSchema
+ * @returns 200 - HTML toast; sets tb_access_token cookie + HX-Redirect: /submit
+ * @returns 400 - HTML error toast - bad credentials or validation failure
+ * @sideeffect None beyond the cookie
+ */
 app.post("/api/auth/login", async (c) => {
   let body: unknown;
   try {
@@ -268,6 +317,14 @@ app.post("/api/auth/login", async (c) => {
   return c.html(successToast("Masuk berhasil."));
 });
 
+/**
+ * POST /api/auth/logout (and GET variant below for plain-link logout)
+ *
+ * Clears the contributor session. No body.
+ *
+ * @returns 200 - empty body, clears tb_access_token, HX-Redirect: /
+ * @sideeffect None
+ */
 app.post("/api/auth/logout", (c) => {
   c.header("Set-Cookie", clearUserTokenCookie());
   c.header("HX-Redirect", "/");
@@ -281,6 +338,22 @@ app.get("/api/auth/logout", (c) => {
 
 // ---------- image upload ----------
 
+/**
+ * POST /api/upload
+ *
+ * Contributor-only, rate-limited. Resizes an uploaded image (longest edge <=1600px, WebP)
+ * and stores it in the shared `workshops` Supabase Storage bucket. Returns the public URL
+ * for the caller to attach as `image_url` on a subsequent POST /api/submissions — this
+ * route does not itself associate the photo with any workshop.
+ *
+ * @body multipart/form-data - "file": image/jpeg|png|webp, max 5MB
+ * @returns 200 - { url }
+ * @returns 400 - { error } - bad content-type/format/size, or undecodable image
+ * @returns 401 - { error } - no contributor session
+ * @returns 429 - { error } - rate limit (10/60s/IP)
+ * @returns 500 - { error } - Storage upload failed (message is opaque)
+ * @sideeffect Writes a file to the `workshops` Storage bucket
+ */
 app.post("/api/upload", async (c) => {
   const ip = clientIp(c.req.raw);
   if (!rateLimit(`upl:${ip}`, 10)) return c.json({ error: "Terlalu banyak permintaan" }, 429);
@@ -312,6 +385,22 @@ app.post("/api/upload", async (c) => {
 
 // ---------- submissions ----------
 
+/**
+ * POST /api/submissions
+ *
+ * Contributor-only, rate-limited. Inserts a workshop into tambal_ban with source='user',
+ * verified=false — invisible to the public until an admin publishes it. `source`/`verified`
+ * are always server-set; a client cannot override either. `user_id` is stamped by a DB
+ * trigger from the caller's JWT, never sent by the client.
+ *
+ * @body submissionSchema - name, lat/lon (Indonesia bounds), optional fields, 8 service booleans
+ * @returns 200 - HTML toast; HX-Redirect: /?submitted=1
+ * @returns 400 - HTML error toast - malformed JSON or Zod validation failure
+ * @returns 401 - HTML error toast - no contributor session
+ * @returns 429 - HTML error toast - rate limit (5/60s/IP)
+ * @returns 502 - HTML error toast - insert failed (message is opaque)
+ * @sideeffect Inserts one row into tambal_ban
+ */
 app.post("/api/submissions", async (c) => {
   const ip = clientIp(c.req.raw);
   if (!rateLimit(`sub:${ip}`, 5)) return c.html(errorToast("Terlalu banyak kiriman. Coba lagi nanti."), 429);
@@ -365,6 +454,19 @@ app.post("/api/submissions", async (c) => {
 
 // ---------- admin auth + queue ----------
 
+/**
+ * POST /api/admin/login
+ *
+ * Public, rate-limited (brute-force guard checked before the password comparison).
+ * Authenticates the shared ADMIN_PASSWORD and issues a signed HMAC session cookie.
+ *
+ * @body { password } - adminLoginSchema
+ * @returns 200 - HTML toast; sets tb_admin_session cookie + HX-Redirect: /admin
+ * @returns 400 - HTML error toast - validation failure
+ * @returns 401 - HTML error toast "Password salah." - wrong password
+ * @returns 429 - HTML error toast - rate limit (5/60s/IP)
+ * @sideeffect None beyond the cookie
+ */
 app.post("/api/admin/login", async (c) => {
   const ip = clientIp(c.req.raw);
   if (!rateLimit(`adm:${ip}`, 5)) return c.html(errorToast("Terlalu banyak percobaan."), 429);
@@ -384,6 +486,14 @@ app.post("/api/admin/login", async (c) => {
   return c.html(successToast("Masuk sebagai admin."));
 });
 
+/**
+ * GET /api/admin/logout
+ *
+ * Clears the admin session cookie. No active session required to call.
+ *
+ * @returns 302 - redirect to /admin/login
+ * @sideeffect None
+ */
 app.get("/api/admin/logout", async (c) => {
   c.header("Set-Cookie", clearSessionCookie());
   return c.redirect("/admin/login");
@@ -392,6 +502,19 @@ app.get("/api/admin/logout", async (c) => {
 const adminGate = async (c: Context<{ Bindings: Env }>): Promise<boolean> =>
   isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET);
 
+/**
+ * GET /api/admin/submissions
+ *
+ * Admin-only (isAdmin() is the real security boundary — the /admin page's redirect is
+ * UX only). Lists unverified user submissions (source='user', verified=false) for the
+ * review queue, oldest first. Uses the service-role key — the only role that can read
+ * unverified rows.
+ *
+ * @returns 200 - UnverifiedSubmission[] (bare array)
+ * @returns 401 - { error: "Unauthorized" }
+ * @returns 502 - { error } - Supabase read failed
+ * @sideeffect None
+ */
 app.get("/api/admin/submissions", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   try {
@@ -401,6 +524,19 @@ app.get("/api/admin/submissions", async (c) => {
   }
 });
 
+/**
+ * GET /api/admin/workshops
+ *
+ * Admin-only. Filtered/paginated list of ALL tambal_ban rows (verified and unverified) —
+ * the only route that can list unverified rows outside the queue endpoint above.
+ *
+ * @query search,verified,source,limit,offset - adminDataQuerySchema
+ * @returns 200 - HTML list fragment (#data-list HTMX swap target), not JSON
+ * @returns 400 - { error } - invalid query params
+ * @returns 401 - { error: "Unauthorized" }
+ * @returns 502 - { error } - Supabase read failed
+ * @sideeffect None
+ */
 app.get("/api/admin/workshops", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   const parsed = adminDataQuerySchema.safeParse(c.req.query());
@@ -419,30 +555,79 @@ app.get("/api/admin/workshops", async (c) => {
   }
 });
 
+/**
+ * POST /api/admin/submissions/:id/publish
+ *
+ * Admin-only. The single public-visibility transition in the app: flips verified=true
+ * and stamps verified_at on one row. One-way by design — there is no un-publish route;
+ * reverting is a direct DB edit, not an API call. Idempotent: re-publishing an already
+ * published row just re-stamps verified_at, so a double-click is harmless.
+ *
+ * @param id - path param, must be a UUID (rejected with 400 before any DB call otherwise)
+ * @returns 200 - HTML toast (delivered out-of-band to #toast)
+ * @returns 400 - { error: "Invalid ID" }
+ * @returns 401 - { error: "Unauthorized" }
+ * @returns 502 - HTML error toast - update failed
+ * @sideeffect PATCHes tambal_ban.verified=true, verified_at=now() on one row
+ */
 app.post("/api/admin/submissions/:id/publish", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.param("id");
+  if (!UUID_RE.test(id)) return c.json({ error: "Invalid ID" }, 400);
   try {
     await db.publishSubmission(c.env, id);
-    return c.html(successToast("Diterbitkan."));
+    // Button uses hx-swap="none" — both the row's removal and the toast ride
+    // out-of-band, so a failed request below never touches the row at all.
+    return c.html(
+      `<div id="wksp-${id}" hx-swap-oob="delete"></div>` +
+      `<div id="toast" hx-swap-oob="innerHTML">${successToast("Diterbitkan.")}</div>`,
+    );
   } catch {
-    return c.html(errorToast("Gagal menerbitkan."), 502);
+    return c.html(`<div id="toast" hx-swap-oob="innerHTML">${errorToast("Gagal menerbitkan.")}</div>`, 502);
   }
 });
 
+/**
+ * POST /api/admin/submissions/:id/remove
+ *
+ * Admin-only. Permanently deletes one tambal_ban row — destructive and irreversible
+ * through the app (the admin UI confirms before calling this). Idempotent: removing an
+ * already-removed row is a no-op.
+ *
+ * @param id - path param, must be a UUID (rejected with 400 before any DB call otherwise)
+ * @returns 200 - empty body
+ * @returns 400 - { error: "Invalid ID" }
+ * @returns 401 - { error: "Unauthorized" }
+ * @returns 502 - HTML error toast - delete failed
+ * @sideeffect DELETEs one row from tambal_ban
+ */
 app.post("/api/admin/submissions/:id/remove", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.param("id");
+  if (!UUID_RE.test(id)) return c.json({ error: "Invalid ID" }, 400);
   try {
     await db.removeSubmission(c.env, id);
-    return c.html("");
+    return c.html(`<div id="wksp-${id}" hx-swap-oob="delete"></div>`);
   } catch {
-    return c.html(errorToast("Gagal menghapus."), 502);
+    return c.html(`<div id="toast" hx-swap-oob="innerHTML">${errorToast("Gagal menghapus.")}</div>`, 502);
   }
 });
 
 // ---------- bulk admin ----------
 
+/**
+ * POST /api/admin/bulk/publish
+ *
+ * Admin-only. Publishes multiple rows in one call (the queue's "select all" action).
+ * Non-UUID entries in `ids` are silently dropped, not rejected as a whole-request error.
+ *
+ * @body { ids: string[] }
+ * @returns 200 - HTML toast, e.g. "3 kiriman diterbitkan."
+ * @returns 400 - { error: "No IDs" } - list empty or every entry invalid
+ * @returns 401 - { error: "Unauthorized" }
+ * @returns 502 - HTML error toast - update failed
+ * @sideeffect PATCHes tambal_ban.verified=true, verified_at=now() on the given rows
+ */
 app.post("/api/admin/bulk/publish", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   let body: Record<string, unknown>;
@@ -457,6 +642,18 @@ app.post("/api/admin/bulk/publish", async (c) => {
   }
 });
 
+/**
+ * POST /api/admin/bulk/remove
+ *
+ * Admin-only. Same contract as bulk publish, but deletes the given rows.
+ *
+ * @body { ids: string[] }
+ * @returns 200 - HTML toast, e.g. "3 kiriman dihapus."
+ * @returns 400 - { error: "No IDs" }
+ * @returns 401 - { error: "Unauthorized" }
+ * @returns 502 - HTML error toast - delete failed
+ * @sideeffect DELETEs the given rows from tambal_ban
+ */
 app.post("/api/admin/bulk/remove", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   let body: Record<string, unknown>;

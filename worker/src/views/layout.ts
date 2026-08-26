@@ -115,6 +115,17 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
   ${maps ? `<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />` : ""}
   ${cdn("https://unpkg.com/htmx.org@2.0.4")}
   ${cdn("https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js")}
+  <script>
+    // htmx's default responseHandling skips the swap on 4xx/5xx, so every
+    // errorToast() this app returns with an error status would render nothing.
+    // Keep them swappable so error toasts actually reach #toast.
+    htmx.config.responseHandling = [
+      { code: "204", swap: false },
+      { code: "[23]..", swap: true },
+      { code: "[45]..", swap: true, error: false },
+      { code: "...", swap: true },
+    ];
+  </script>
   ${maps ? `<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>` : ""}
 </head>
 <body class="bg-slate-50 text-slate-900 ${bodyClass}">
