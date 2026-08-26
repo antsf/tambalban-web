@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Latitude/longitude on the submission form are now visible, editable fields instead of
+  hidden ones — you can type exact coordinates directly, not only place a pin
+- Placing a pin by tapping the map now gives instant feedback if the location is outside
+  Indonesia, matching the existing address-search and "pakai lokasi saya" behavior
+
 ### Removed
 - Old Next.js scaffolding (`src/`, `next.config.ts`, `vercel.json`, `next-env.d.ts`) — the
   rewrite to the Hono/HTMX worker stack is complete; the live app lives entirely in `worker/`
@@ -29,6 +35,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Workshop pages are now included in `sitemap.xml`
 
 ### Fixed
+- Error messages across the site (wrong password, invalid input, rate limits, failed
+  publish/remove, and more) now actually appear — a default in the HTMX library was
+  silently discarding every error response instead of showing it
+- Publishing or removing a submission in the admin queue/data list no longer replaces the
+  row with a leftover confirmation box: the row disappears cleanly on success, and stays
+  untouched with a clear error message if the action fails
+- Website and photo-URL fields on the submission form now reject anything that isn't a
+  plain http(s) link, closing a path for a malicious link to end up as a clickable button
+  on the public map
+- Fixed a JavaScript error that silently broke keyboard activation (Enter/Space) of the
+  non-map workshop list next to the map
+- Phone and WhatsApp fields on the submission form now show a numeric keypad on mobile
+  instead of a full keyboard
 - Map rendered blank because the Content-Security-Policy `style-src` blocked the Leaflet
   stylesheet loaded from `unpkg.com` — `unpkg.com` is now allowed for stylesheets, so tiles
   and popups render again
