@@ -35,6 +35,8 @@ const env: Env = {
   SUPABASE_SERVICE_ROLE_KEY: "service-role",
   ADMIN_PASSWORD: "hunter2",
   ADMIN_SESSION_SECRET: "test-secret",
+  // Not exercised by any route under test here — see routes-d1.test.ts for the D1 surface.
+  DB: {} as unknown as D1Database,
 };
 
 const UUID = "50493a0c-45be-480e-84f0-67814df98f29";

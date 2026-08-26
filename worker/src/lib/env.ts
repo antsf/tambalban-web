@@ -5,4 +5,6 @@ export interface Env {
   ADMIN_PASSWORD: string;
   ADMIN_SESSION_SECRET: string;
   NOMINATIM_USER_AGENT?: string;
+  /** D1 migration (Phase 2, read-only-verify) — see specs/d1-migration-plan.md. Not yet in the production request path. */
+  DB: D1Database;
 }
