@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { Env } from "./lib/env";
 import * as d1 from "./lib/d1";
+import { verifyAgainstSupabaseAuth } from "./lib/legacy-auth";
 import { loginSchema, bboxSchema } from "./lib/validation";
 import { rateLimit, clientIp } from "./lib/rate-limit";
 
@@ -64,9 +65,19 @@ appD1.post("/api/v2/auth/login", async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Input tidak valid" }, 400);
 
   const found = await d1.findUserByEmail(c.env, parsed.data.email);
-  if (!found || !(await d1.verifyPassword(parsed.data.password, found.password_hash))) {
+  if (!found) return c.json({ error: "Email/password salah" }, 400);
+
+  if (found.password_hash === null) {
+    // Migrated user, no D1 password yet — verify against the still-live Supabase Auth,
+    // and only on success adopt a fresh D1 password hash (see lib/legacy-auth.ts).
+    const legacyOk = await verifyAgainstSupabaseAuth(c.env, parsed.data.email, parsed.data.password);
+    if (!legacyOk) return c.json({ error: "Email/password salah" }, 400);
+    const newHash = await d1.hashPassword(parsed.data.password);
+    await d1.setPasswordHash(c.env, found.id, newHash);
+  } else if (!(await d1.verifyPassword(parsed.data.password, found.password_hash))) {
     return c.json({ error: "Email/password salah" }, 400);
   }
+
   const { password_hash: _unused, ...user } = found;
   const session = await d1.createSession(c.env, user.id);
   return c.json({ token: session.token, expires_at: session.expiresAt, user });

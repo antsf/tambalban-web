@@ -83,7 +83,7 @@ const USER_PUBLIC_SELECT = "id, email, username, full_name, phone, avatar_url, c
 export async function createUser(
   env: Env,
   email: string,
-  passwordHash: string,
+  passwordHash: string | null,
 ): Promise<UserRow> {
   const id = crypto.randomUUID();
   await env.DB.prepare("INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)")
@@ -97,11 +97,16 @@ export async function createUser(
 export async function findUserByEmail(
   env: Env,
   email: string,
-): Promise<(UserRow & { password_hash: string }) | null> {
+): Promise<(UserRow & { password_hash: string | null }) | null> {
   const row = await env.DB.prepare(`SELECT ${USER_PUBLIC_SELECT}, password_hash FROM users WHERE email = ?`)
     .bind(email)
-    .first<UserRow & { password_hash: string }>();
+    .first<UserRow & { password_hash: string | null }>();
   return row ?? null;
+}
+
+/** Sets the password hash on a migrated user the first time their legacy login succeeds. */
+export async function setPasswordHash(env: Env, userId: string, passwordHash: string): Promise<void> {
+  await env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(passwordHash, userId).run();
 }
 
 export async function findUserById(env: Env, id: string): Promise<UserRow | null> {

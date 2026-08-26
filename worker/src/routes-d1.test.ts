@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appD1 } from "./routes-d1";
 import * as d1 from "./lib/d1";
+import * as legacyAuth from "./lib/legacy-auth";
 import type { Env } from "./lib/env";
 
 vi.mock("./lib/d1", () => ({
@@ -9,12 +10,17 @@ vi.mock("./lib/d1", () => ({
   createUser: vi.fn(),
   findUserByEmail: vi.fn(),
   findUserById: vi.fn(),
+  setPasswordHash: vi.fn(),
   createSession: vi.fn(),
   getSessionUser: vi.fn(),
   deleteSession: vi.fn(),
   fetchVerifiedWorkshopsD1: vi.fn(),
   fetchWorkshopByIdD1: vi.fn(),
   fetchReviewsD1: vi.fn(),
+}));
+
+vi.mock("./lib/legacy-auth", () => ({
+  verifyAgainstSupabaseAuth: vi.fn(),
 }));
 
 const env: Env = {
@@ -148,6 +154,58 @@ describe("POST /api/v2/auth/login", () => {
     expect(res.status).toBe(400);
     const body = (await res.json()) as any;
     expect(body.error).toBe("Email/password salah");
+  });
+
+  it("migrate-on-first-login: adopts a D1 password when the legacy Supabase check succeeds", async () => {
+    vi.mocked(d1.findUserByEmail).mockResolvedValue({
+      id: UUID,
+      email: "migrated@example.com",
+      password_hash: null,
+      username: null,
+      full_name: null,
+      phone: null,
+      avatar_url: null,
+      created_at: "",
+      updated_at: "",
+    });
+    vi.mocked(legacyAuth.verifyAgainstSupabaseAuth).mockResolvedValue(true);
+    vi.mocked(d1.createSession).mockResolvedValue({ token: "tok789", expiresAt: "2026-02-01T00:00:00.000Z" });
+
+    const res = await appD1.request(
+      "/api/v2/auth/login",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "migrated@example.com", password: "oldpassword1" }) },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(legacyAuth.verifyAgainstSupabaseAuth).toHaveBeenCalledWith(env, "migrated@example.com", "oldpassword1");
+    expect(d1.setPasswordHash).toHaveBeenCalledWith(env, UUID, "hashed:oldpassword1");
+    expect(d1.createSession).toHaveBeenCalledWith(env, UUID);
+  });
+
+  it("migrate-on-first-login: rejects without adopting a password when the legacy check fails", async () => {
+    vi.mocked(d1.findUserByEmail).mockResolvedValue({
+      id: UUID,
+      email: "migrated@example.com",
+      password_hash: null,
+      username: null,
+      full_name: null,
+      phone: null,
+      avatar_url: null,
+      created_at: "",
+      updated_at: "",
+    });
+    vi.mocked(legacyAuth.verifyAgainstSupabaseAuth).mockResolvedValue(false);
+
+    const res = await appD1.request(
+      "/api/v2/auth/login",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "migrated@example.com", password: "wrongpassword" }) },
+      env,
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as any;
+    expect(body.error).toBe("Email/password salah");
+    expect(d1.setPasswordHash).not.toHaveBeenCalled();
+    expect(d1.createSession).not.toHaveBeenCalled();
   });
 });
 
