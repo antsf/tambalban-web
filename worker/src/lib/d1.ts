@@ -11,7 +11,9 @@ import type { Env } from "./env";
  * an accepted, dependency-free choice for this runtime.
  */
 
-const PBKDF2_ITERATIONS = 210_000;
+// Cloudflare Workers' SubtleCrypto caps PBKDF2 at 100,000 iterations
+// (higher throws NotSupportedError) — this is the max the runtime allows, not a choice.
+const PBKDF2_ITERATIONS = 100_000;
 
 function toBase64(bytes: ArrayBuffer | Uint8Array): string {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);

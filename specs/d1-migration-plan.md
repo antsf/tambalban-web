@@ -45,8 +45,13 @@ via a real Login/Register screen on both apps; an API-key model doesn't fit that
 force a client-facing redesign for no benefit).
 
 - `users` table: `id, email UNIQUE, password_hash, username, full_name, phone, avatar_url,
-  created_at, updated_at`. Password hashed with scrypt via Web Crypto (native to Workers,
-  no dependency).
+  created_at, updated_at`. Password hashed with PBKDF2-SHA256 via native Web Crypto
+  (`crypto.subtle`) — no new dependency. **Correction (2026-08-26, caught by a live smoke
+  test against the deployed Worker, not by local Vitest):** Workers' `SubtleCrypto` caps
+  PBKDF2 at 100,000 iterations (higher throws `NotSupportedError`); the original design
+  assumed scrypt/600k-iteration PBKDF2 was available, neither is. Using 100,000 (the max the
+  runtime allows). Local tests run in plain Node and do NOT catch this — Node's `crypto.subtle`
+  has no such cap — so this class of bug only surfaces against the real Workers runtime.
 - `sessions` table: `token (PK), user_id, expires_at, created_at`.
 - Android: `Authorization: Bearer <token>`. Web: same token, delivered via the existing
   HttpOnly cookie pattern.
