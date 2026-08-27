@@ -13,32 +13,13 @@ export function getUserToken(cookieHeader: string | null | undefined): string | 
   return getCookie(cookieHeader, USER_COOKIE);
 }
 
-function decodeBase64Url(data: string): string {
-  const pad = data.length % 4 === 0 ? "" : "=".repeat(4 - (data.length % 4));
-  return atob(data.replace(/-/g, "+").replace(/_/g, "/") + pad);
-}
-
-function decodeJwtPayload(token: string): { email?: string; exp?: number } | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  try {
-    return JSON.parse(decodeBase64Url(parts[1])) as { email?: string; exp?: number };
-  } catch {
-    return null;
-  }
-}
-
-/** Returns the logged-in user's email from an unexpired access token, else null. */
-export function userEmailFromToken(token: string | null): string | null {
-  if (!token) return null;
-  const payload = decodeJwtPayload(token);
-  if (!payload || typeof payload.exp !== "number" || payload.exp < Date.now() / 1000) return null;
-  return payload.email ?? null;
-}
-
-export function userTokenCookie(token: string, secure: boolean): string {
-  const payload = decodeJwtPayload(token);
-  const maxAge = payload?.exp ? Math.max(0, Math.round(payload.exp - Date.now() / 1000)) : 3600;
+/**
+ * D1 session tokens are opaque (lib/d1.ts's createSession) — unlike the Supabase JWT this
+ * replaced, there's no embedded expiry/email to decode client-side. Resolving a token to a
+ * user always means a `d1.getSessionUser` lookup (see routes.ts's getD1SessionUser).
+ */
+export function userTokenCookie(token: string, expiresAt: string, secure: boolean): string {
+  const maxAge = Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 1000));
   return `${USER_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 

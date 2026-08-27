@@ -180,20 +180,43 @@ Not decided yet — revisit before Phase 3.
       cap and production now has ~440 verified rows — swapping as-is would've silently dropped
       over half the sitemap and any unbounded map view. Raised the cap to 1000.
 
-      Still on Supabase: auth (register/login/logout) and submit (workshop create + review +
-      image upload — image upload also blocks on 4b/R2). Two options for those — decide before
-      starting, don't default silently:
-      - **Merge:** rewrite `routes.ts` handlers to read/write D1 instead of Supabase REST,
-        keep the existing cookie-session UX, retire `supabase-auth.ts`. Larger diff, one
-        codebase.
-      - **Swap:** keep `routes-d1.ts`'s bearer-token API, add a thin cookie-session shim in
-        front of it for the browser routes. Smaller diff, but means running two auth
-        mechanisms (bearer + cookie) against one `sessions` table.
-      Recommendation: **Merge** — the "one Worker, not two" topology decision above already
-      commits to one D1 binding shared by both surfaces; keeping `routes.ts` on Supabase
-      indefinitely defeats that. Do this incrementally, route group by route group (public
-      map/search first — read-only, lowest risk — then submit, then admin), each behind its
-      own smoke test before moving to the next.
+      **Auth + submit + upload done 2026-08-28** — the last web-app slice. Went with
+      **Merge** (rewrite `routes.ts` in place, not the bearer-shim alternative), matching the
+      "one Worker, not two" topology decision.
+      - `POST /api/auth/register` / `/login` / `/logout` (both POST and GET variants) now
+        create/verify/delete D1 sessions instead of calling `lib/supabase-auth.ts`. Migrate-
+        on-first-login (`lib/legacy-auth.ts`) reused verbatim from the v2 API. Register no
+        longer has an "email confirmation required" branch — D1 has no email-sending infra,
+        and the v2 bearer API never had one either, so this matches what's already shipped
+        for Android rather than introducing a new gap.
+      - `POST /api/submissions` calls `d1.insertWorkshopD1(env, user.id, parsed.data)`
+        directly instead of building a hand-rolled row object for a Supabase POST. Incidental
+        fix: the old hand-rolled object silently dropped `website`/`instagram` before insert
+        even though the form/schema captured them — `insertWorkshopD1` includes every
+        `submissionSchema` field, so this is now saved correctly. `user_id`/`source`/
+        `verified` are still stamped server-side only, same guarantee as before (D1 has no
+        RLS trigger equivalent — the Worker does this directly, as this file already noted
+        under "Auth").
+      - `POST /api/upload` calls `lib/r2.ts`'s `uploadWorkshopImage` instead of
+        `supabase.ts`'s `uploadImage`.
+      - **Cookie model changed, not just the backend.** The old `tb_access_token` cookie held
+        a Supabase JWT — `userEmailFromToken` decoded the email client-side with no DB round
+        trip. D1 session tokens are opaque (`lib/d1.ts`'s `createSession`), so every page
+        needing session state now does a `d1.getSessionUser` lookup (`getD1SessionUser` in
+        routes.ts) — a real architecture change (DB read on every page load vs. a pure
+        decode), acceptable here since it's the same D1 instance already serving everything
+        else on the request path. `lib/user-auth.ts` rewritten to match: `userTokenCookie`
+        takes an explicit `expiresAt` instead of parsing a JWT; `userEmailFromToken` and its
+        JWT-decoding helpers are gone.
+      - Verified: 116 Vitest cases (routes.test.ts's submissions/upload tests rewritten
+        against `d1`/`r2` mocks; new register/login/logout test coverage added — there was
+        none before, a pre-existing gap), plus a full manual `npm run dev` smoke pass:
+        register → cookie set → `/submit` renders logged-in → real image upload
+        (resize → R2 → URL) → workshop insert (`verified=0`, `source=user`, `user_id`
+        stamped, not client-supplied) → logout → re-login. `lib/supabase.ts`'s
+        `insertSubmission`/`uploadImage` and all of `lib/supabase-auth.ts` are now unused by
+        `routes.ts` but deliberately NOT deleted yet — they're the rollback path if Phase 4's
+        soak period (4e) turns up a bug; removal is a Phase 5 task, after Supabase retires.
 
    d. **Android app cutover.** `tambalban/app/.../core/utils/SupabaseConfig.kt` currently
       points directly at `https://xwqckmkjciptlbopmxjl.supabase.co/`. Switch

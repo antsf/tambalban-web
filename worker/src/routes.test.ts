@@ -1,15 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { app } from "./routes";
-import * as db from "./lib/supabase";
 import * as d1 from "./lib/d1";
+import * as r2 from "./lib/r2";
+import * as legacyAuth from "./lib/legacy-auth";
 import type { Env } from "./lib/env";
 import { setSessionCookie } from "./lib/admin-auth";
 import { resizeUploadImage } from "./lib/image";
-
-vi.mock("./lib/supabase", () => ({
-  insertSubmission: vi.fn(),
-  uploadImage: vi.fn(),
-}));
 
 vi.mock("./lib/d1", () => ({
   fetchUnverifiedD1: vi.fn(),
@@ -22,11 +18,23 @@ vi.mock("./lib/d1", () => ({
   bulkRemoveD1: vi.fn(),
   fetchUsersD1: vi.fn(),
   fetchAllReviewsD1: vi.fn(),
+  getSessionUser: vi.fn(),
+  findUserByEmail: vi.fn(),
+  hashPassword: vi.fn(async (p: string) => `hashed:${p}`),
+  verifyPassword: vi.fn(async (p: string, h: string) => h === `hashed:${p}`),
+  createUser: vi.fn(),
+  createSession: vi.fn(),
+  setPasswordHash: vi.fn(),
+  deleteSession: vi.fn(),
+  insertWorkshopD1: vi.fn(),
 }));
 
-vi.mock("./lib/supabase-auth", () => ({
-  register: vi.fn(),
-  login: vi.fn(),
+vi.mock("./lib/r2", () => ({
+  uploadWorkshopImage: vi.fn(),
+}));
+
+vi.mock("./lib/legacy-auth", () => ({
+  verifyAgainstSupabaseAuth: vi.fn(),
 }));
 
 vi.mock("./lib/image", () => ({
@@ -48,18 +56,23 @@ const env: Env = {
 const UUID = "50493a0c-45be-480e-84f0-67814df98f29";
 const OTHER_UUID = "50493a0c-45be-480e-84f0-67814df98f30";
 
-function b64url(s: string): string {
-  // Workers runtime has no Buffer; implement base64url for ASCII payloads.
-  const bytes = new TextEncoder().encode(s);
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
+/** D1 session tokens are opaque — a test "logs in" by mocking getSessionUser to resolve
+ * this token to a user, then sending it as the tb_access_token cookie. */
+const FAKE_SESSION_TOKEN = "fake-session-token";
+const FAKE_USER: d1.UserRow = {
+  id: UUID,
+  email: "user@example.com",
+  username: null,
+  full_name: null,
+  phone: null,
+  avatar_url: null,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+};
 
-function fakeUserToken(email: string): string {
-  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = b64url(JSON.stringify({ email, exp: Math.floor(Date.now() / 1000) + 3600 }));
-  return `${header}.${payload}.${b64url("fake-signature")}`;
+function loggedInCookie(): string {
+  vi.mocked(d1.getSessionUser).mockResolvedValue(FAKE_USER);
+  return `tb_access_token=${FAKE_SESSION_TOKEN}`;
 }
 
 async function adminCookie(): Promise<string> {
@@ -222,37 +235,39 @@ describe("submissions", () => {
       env,
     );
     expect(res.status).toBe(401);
-    expect(db.insertSubmission).not.toHaveBeenCalled();
+    expect(d1.insertWorkshopD1).not.toHaveBeenCalled();
   });
 
   it("rejects an out-of-Indonesia submission without inserting", async () => {
-    const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
+    const cookie = loggedInCookie();
     const res = await app.request(
       "/api/submissions",
       { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ ...validSubmissionBody(), lat: 7 }) },
       env,
     );
     expect(res.status).toBe(400);
-    expect(db.insertSubmission).not.toHaveBeenCalled();
+    expect(d1.insertWorkshopD1).not.toHaveBeenCalled();
   });
 
-  it("always sends source=user and verified=false for user submissions", async () => {
-    vi.mocked(db.insertSubmission).mockResolvedValue({} as never);
-    const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
+  it("inserts as the logged-in user, never trusting a client-supplied user_id", async () => {
+    vi.mocked(d1.insertWorkshopD1).mockResolvedValue({} as never);
+    const cookie = loggedInCookie();
     const res = await app.request(
       "/api/submissions",
-      { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify(validSubmissionBody()) },
+      {
+        method: "POST",
+        headers: { Cookie: cookie, "Content-Type": "application/json" },
+        body: JSON.stringify({ ...validSubmissionBody(), user_id: "someone-else" }),
+      },
       env,
     );
     expect(res.status).toBe(200);
-    const [, , row] = vi.mocked(db.insertSubmission).mock.calls[0];
-    expect(row.source).toBe("user");
-    expect(row.verified).toBe(false);
+    expect(d1.insertWorkshopD1).toHaveBeenCalledWith(env, FAKE_USER.id, expect.objectContaining({ name: "Tambal Ban Jaya" }));
   });
 
   it("forwards DB failures as 502 without leaking error text", async () => {
-    vi.mocked(db.insertSubmission).mockRejectedValue(new Error("insert RLS detail"));
-    const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
+    vi.mocked(d1.insertWorkshopD1).mockRejectedValue(new Error("insert detail"));
+    const cookie = loggedInCookie();
     const res = await app.request(
       "/api/submissions",
       { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify(validSubmissionBody()) },
@@ -260,15 +275,15 @@ describe("submissions", () => {
     );
     expect(res.status).toBe(502);
     const body = await res.text();
-    expect(body).not.toContain("insert RLS detail");
+    expect(body).not.toContain("insert detail");
     expect(body.toLowerCase()).toContain("gagal menyimpan");
   });
 });
 
 describe("image upload", () => {
-  it("resizes to webp before uploading", async () => {
-    vi.mocked(db.uploadImage).mockResolvedValue("https://example.supabase.co/storage/v1/object/public/workshops/x.webp");
-    const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
+  it("resizes to webp before uploading to R2", async () => {
+    vi.mocked(r2.uploadWorkshopImage).mockResolvedValue("https://tambalban-web.antsf.workers.dev/images/workshops/x.webp");
+    const cookie = loggedInCookie();
     const form = new FormData();
     form.append("file", new File([new Uint8Array(8)], "photo.png", { type: "image/png" }));
     const res = await app.request(
@@ -277,20 +292,19 @@ describe("image upload", () => {
       env,
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ url: "https://example.supabase.co/storage/v1/object/public/workshops/x.webp" });
-    const resizeCall = vi.mocked(resizeUploadImage);
-    expect(resizeCall).toHaveBeenCalledTimes(1);
-    const uploaded = vi.mocked(db.uploadImage).mock.calls[0];
-    expect(uploaded[2]).toBeInstanceOf(ArrayBuffer);
-    expect(uploaded[3]).toBe("image/webp");
-    expect(uploaded[4]).toBe("webp");
+    expect(await res.json()).toEqual({ url: "https://tambalban-web.antsf.workers.dev/images/workshops/x.webp" });
+    expect(resizeUploadImage).toHaveBeenCalledTimes(1);
+    const uploaded = vi.mocked(r2.uploadWorkshopImage).mock.calls[0];
+    expect(uploaded[1]).toBeInstanceOf(ArrayBuffer);
+    expect(uploaded[2]).toBe("image/webp");
+    expect(uploaded[3]).toBe("webp");
   });
 
   it("rejects an undecodable image as a 400 client error", async () => {
     vi.mocked(resizeUploadImage).mockImplementation(() => {
       throw new Error("bad image");
     });
-    const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
+    const cookie = loggedInCookie();
     const form = new FormData();
     form.append("file", new File([new Uint8Array(8)], "x.jpg", { type: "image/jpeg" }));
     const res = await app.request(
@@ -299,13 +313,13 @@ describe("image upload", () => {
       env,
     );
     expect(res.status).toBe(400);
-    expect(db.uploadImage).not.toHaveBeenCalled();
+    expect(r2.uploadWorkshopImage).not.toHaveBeenCalled();
   });
 
   it("does not leak the underlying upload error to the client", async () => {
     vi.mocked(resizeUploadImage).mockReturnValue(new Uint8Array([9]).buffer as ArrayBuffer);
-    vi.mocked(db.uploadImage).mockRejectedValue(new Error("supabase-storage token leak"));
-    const cookie = `tb_access_token=${fakeUserToken("user@example.com")}`;
+    vi.mocked(r2.uploadWorkshopImage).mockRejectedValue(new Error("r2 token leak"));
+    const cookie = loggedInCookie();
     const form = new FormData();
     form.append("file", new File([new Uint8Array(8)], "x.jpg", { type: "image/jpeg" }));
     const res = await app.request(
@@ -315,8 +329,101 @@ describe("image upload", () => {
     );
     expect(res.status).toBe(500);
     const body = await res.text();
-    expect(body).not.toContain("supabase-storage token leak");
+    expect(body).not.toContain("r2 token leak");
     expect(body).toContain("Gagal mengunggah foto");
+  });
+});
+
+describe("POST /api/auth/register", () => {
+  it("rejects invalid input before touching D1", async () => {
+    const res = await app.request(
+      "/api/auth/register",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "not-an-email", password: "short" }) },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(d1.findUserByEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects an already-registered email without creating a user", async () => {
+    vi.mocked(d1.findUserByEmail).mockResolvedValue({ ...FAKE_USER, password_hash: "hashed:x" });
+    const res = await app.request(
+      "/api/auth/register",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "user@example.com", password: "sandiaman123" }) },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(d1.createUser).not.toHaveBeenCalled();
+  });
+
+  it("creates a user, starts a session, and sets the cookie", async () => {
+    vi.mocked(d1.findUserByEmail).mockResolvedValue(null);
+    vi.mocked(d1.createUser).mockResolvedValue(FAKE_USER);
+    vi.mocked(d1.createSession).mockResolvedValue({ token: "tok123", expiresAt: "2026-02-01T00:00:00.000Z" });
+    const res = await app.request(
+      "/api/auth/register",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "user@example.com", password: "sandiaman123" }) },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Set-Cookie")).toContain("tb_access_token=tok123");
+    expect(res.headers.get("HX-Redirect")).toBe("/submit");
+  });
+});
+
+describe("POST /api/auth/login", () => {
+  it("rejects an unknown email without leaking whether it exists", async () => {
+    vi.mocked(d1.findUserByEmail).mockResolvedValue(null);
+    const res = await app.request(
+      "/api/auth/login",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "nobody@example.com", password: "sandiaman123" }) },
+      env,
+    );
+    expect(res.status).toBe(400);
+    const body = await res.text();
+    expect(body.toLowerCase()).toContain("email/password salah");
+  });
+
+  it("logs in with correct credentials", async () => {
+    vi.mocked(d1.findUserByEmail).mockResolvedValue({ ...FAKE_USER, password_hash: "hashed:sandiaman123" });
+    vi.mocked(d1.createSession).mockResolvedValue({ token: "tok456", expiresAt: "2026-02-01T00:00:00.000Z" });
+    const res = await app.request(
+      "/api/auth/login",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "user@example.com", password: "sandiaman123" }) },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Set-Cookie")).toContain("tb_access_token=tok456");
+  });
+
+  it("migrate-on-first-login: adopts a D1 password when the legacy Supabase check succeeds", async () => {
+    vi.mocked(d1.findUserByEmail).mockResolvedValue({ ...FAKE_USER, password_hash: null });
+    vi.mocked(legacyAuth.verifyAgainstSupabaseAuth).mockResolvedValue(true);
+    vi.mocked(d1.createSession).mockResolvedValue({ token: "tok789", expiresAt: "2026-02-01T00:00:00.000Z" });
+    const res = await app.request(
+      "/api/auth/login",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "user@example.com", password: "oldpassword1" }) },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(d1.setPasswordHash).toHaveBeenCalledWith(env, FAKE_USER.id, "hashed:oldpassword1");
+  });
+});
+
+describe("logout", () => {
+  it("POST clears the cookie and deletes the D1 session", async () => {
+    const cookie = loggedInCookie();
+    const res = await app.request("/api/auth/logout", { method: "POST", headers: { Cookie: cookie } }, env);
+    expect(res.status).toBe(200);
+    expect(d1.deleteSession).toHaveBeenCalledWith(env, FAKE_SESSION_TOKEN);
+    expect(res.headers.get("Set-Cookie")).toContain("Max-Age=0");
+  });
+
+  it("GET variant redirects and deletes the D1 session too", async () => {
+    const cookie = loggedInCookie();
+    const res = await app.request("/api/auth/logout", { headers: { Cookie: cookie } }, env);
+    expect(res.status).toBe(302);
+    expect(d1.deleteSession).toHaveBeenCalledWith(env, FAKE_SESSION_TOKEN);
   });
 });
 

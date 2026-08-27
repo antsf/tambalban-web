@@ -2,11 +2,11 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { z } from "zod";
 import type { Env } from "./lib/env";
-import * as db from "./lib/supabase";
 import * as d1 from "./lib/d1";
 import type { Workshop } from "./lib/supabase";
-import * as sauth from "./lib/supabase-auth";
-import { getUserToken, userEmailFromToken, userTokenCookie, clearUserTokenCookie } from "./lib/user-auth";
+import { verifyAgainstSupabaseAuth } from "./lib/legacy-auth";
+import { uploadWorkshopImage } from "./lib/r2";
+import { getUserToken, userTokenCookie, clearUserTokenCookie } from "./lib/user-auth";
 import { isAdmin, setSessionCookie, clearSessionCookie, validateAdminPassword } from "./lib/admin-auth";
 import { rateLimit, clientIp } from "./lib/rate-limit";
 import { securityHeaders } from "./lib/security";
@@ -93,13 +93,21 @@ interface SessionState {
   admin: boolean;
 }
 
+/** D1 session tokens are opaque — resolving one to a user always means a DB lookup, unlike
+ * the Supabase JWT this replaced (which decoded client-side with no DB round trip). */
+async function getD1SessionUser(c: Context<{ Bindings: Env }>): Promise<d1.UserRow | null> {
+  const token = getUserToken(c.req.header("Cookie"));
+  if (!token) return null;
+  return d1.getSessionUser(c.env, token);
+}
+
 /** Read both cookies once so every page can render a consistent header. */
 async function getSession(c: Context<{ Bindings: Env }>): Promise<SessionState> {
-  const cookie = c.req.header("Cookie");
-  return {
-    email: userEmailFromToken(getUserToken(cookie)),
-    admin: await isAdmin(cookie, c.env.ADMIN_SESSION_SECRET),
-  };
+  const [user, admin] = await Promise.all([
+    getD1SessionUser(c),
+    isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET),
+  ]);
+  return { email: user?.email ?? null, admin };
 }
 
 app.get("/", async (c) => {
@@ -304,14 +312,15 @@ app.get("/api/geocode", async (c) => {
 /**
  * POST /api/auth/register
  *
- * Public. Creates a contributor account via Supabase Auth — same user store as the
- * Android app. Returns an HTML toast fragment, not JSON.
+ * Public. Creates a contributor account in D1 — same user store as the Android app's
+ * bearer API (/api/v2/auth/register). Returns an HTML toast fragment, not JSON. No email
+ * confirmation step (D1 has no email-sending infra, and the v2 API never had one either) —
+ * always logs the new account in immediately, unlike the old Supabase Auth flow.
  *
  * @body { email, password } - loginSchema
- * @returns 200 - HTML toast; sets tb_access_token cookie + HX-Redirect: /submit,
- *   or HX-Redirect: /login?registered=1 if email confirmation is required
- * @returns 400 - HTML error toast - validation failure or Supabase Auth error
- * @sideeffect Inserts a row into auth.users (shared with the Android app)
+ * @returns 200 - HTML toast; sets tb_access_token cookie + HX-Redirect: /submit
+ * @returns 400 - HTML error toast - validation failure or email already registered
+ * @sideeffect Inserts a row into D1 `users` (shared with the Android app)
  */
 app.post("/api/auth/register", async (c) => {
   let body: unknown;
@@ -322,26 +331,27 @@ app.post("/api/auth/register", async (c) => {
   }
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) return c.html(errorToast(parsed.error.issues[0]?.message ?? "Input tidak valid"), 400);
-  const result = await sauth.register(c.env, parsed.data.email, parsed.data.password);
-  if (!result.ok) return c.html(errorToast(result.error ?? "Gagal mendaftar"), 400);
-  if (result.accessToken) {
-    c.header("Set-Cookie", userTokenCookie(result.accessToken, isSecure(c.req.url)));
-    c.header("HX-Redirect", "/submit");
-    return c.html(successToast("Akun dibuat. Selamat datang!"));
-  }
-  c.header("HX-Redirect", "/login?registered=1");
-  return c.html(successToast("Akun dibuat. Cek email untuk konfirmasi, lalu masuk."));
+  const existing = await d1.findUserByEmail(c.env, parsed.data.email);
+  if (existing) return c.html(errorToast("Email sudah terdaftar"), 400);
+  const passwordHash = await d1.hashPassword(parsed.data.password);
+  const user = await d1.createUser(c.env, parsed.data.email, passwordHash);
+  const session = await d1.createSession(c.env, user.id);
+  c.header("Set-Cookie", userTokenCookie(session.token, session.expiresAt, isSecure(c.req.url)));
+  c.header("HX-Redirect", "/submit");
+  return c.html(successToast("Akun dibuat. Selamat datang!"));
 });
 
 /**
  * POST /api/auth/login
  *
- * Public. Logs in an existing contributor via Supabase Auth. HTML toast fragment.
+ * Public. Logs in an existing contributor against D1. HTML toast fragment. Historical
+ * (Supabase-era) users have `password_hash IS NULL` — see lib/legacy-auth.ts for the
+ * migrate-on-first-login fallback, same logic as /api/v2/auth/login.
  *
  * @body { email, password } - loginSchema
  * @returns 200 - HTML toast; sets tb_access_token cookie + HX-Redirect: /submit
  * @returns 400 - HTML error toast - bad credentials or validation failure
- * @sideeffect None beyond the cookie
+ * @sideeffect None beyond the cookie (may lazily backfill password_hash for a migrated user)
  */
 app.post("/api/auth/login", async (c) => {
   let body: unknown;
@@ -352,10 +362,20 @@ app.post("/api/auth/login", async (c) => {
   }
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) return c.html(errorToast(parsed.error.issues[0]?.message ?? "Input tidak valid"), 400);
-  const result = await sauth.login(c.env, parsed.data.email, parsed.data.password);
-  if (!result.ok || !result.accessToken)
-    return c.html(errorToast(result.error ?? "Email/password salah"), 400);
-  c.header("Set-Cookie", userTokenCookie(result.accessToken, isSecure(c.req.url)));
+  const found = await d1.findUserByEmail(c.env, parsed.data.email);
+  if (!found) return c.html(errorToast("Email/password salah"), 400);
+
+  if (found.password_hash === null) {
+    const legacyOk = await verifyAgainstSupabaseAuth(c.env, parsed.data.email, parsed.data.password);
+    if (!legacyOk) return c.html(errorToast("Email/password salah"), 400);
+    const newHash = await d1.hashPassword(parsed.data.password);
+    await d1.setPasswordHash(c.env, found.id, newHash);
+  } else if (!(await d1.verifyPassword(parsed.data.password, found.password_hash))) {
+    return c.html(errorToast("Email/password salah"), 400);
+  }
+
+  const session = await d1.createSession(c.env, found.id);
+  c.header("Set-Cookie", userTokenCookie(session.token, session.expiresAt, isSecure(c.req.url)));
   c.header("HX-Redirect", "/submit");
   return c.html(successToast("Masuk berhasil."));
 });
@@ -363,18 +383,22 @@ app.post("/api/auth/login", async (c) => {
 /**
  * POST /api/auth/logout (and GET variant below for plain-link logout)
  *
- * Clears the contributor session. No body.
+ * Clears the contributor session, deleting it from D1's `sessions` table.
  *
  * @returns 200 - empty body, clears tb_access_token, HX-Redirect: /
- * @sideeffect None
+ * @sideeffect DELETEs one row from D1 `sessions`
  */
-app.post("/api/auth/logout", (c) => {
+app.post("/api/auth/logout", async (c) => {
+  const token = getUserToken(c.req.header("Cookie"));
+  if (token) await d1.deleteSession(c.env, token);
   c.header("Set-Cookie", clearUserTokenCookie());
   c.header("HX-Redirect", "/");
   return c.body(null);
 });
 
-app.get("/api/auth/logout", (c) => {
+app.get("/api/auth/logout", async (c) => {
+  const token = getUserToken(c.req.header("Cookie"));
+  if (token) await d1.deleteSession(c.env, token);
   c.header("Set-Cookie", clearUserTokenCookie());
   return c.redirect("/");
 });
@@ -385,23 +409,23 @@ app.get("/api/auth/logout", (c) => {
  * POST /api/upload
  *
  * Contributor-only, rate-limited. Resizes an uploaded image (longest edge <=1600px, WebP)
- * and stores it in the shared `workshops` Supabase Storage bucket. Returns the public URL
- * for the caller to attach as `image_url` on a subsequent POST /api/submissions — this
- * route does not itself associate the photo with any workshop.
+ * and stores it in the `tambalban-workshops` R2 bucket. Returns the public URL for the
+ * caller to attach as `image_url` on a subsequent POST /api/submissions — this route does
+ * not itself associate the photo with any workshop.
  *
  * @body multipart/form-data - "file": image/jpeg|png|webp, max 5MB
  * @returns 200 - { url }
  * @returns 400 - { error } - bad content-type/format/size, or undecodable image
  * @returns 401 - { error } - no contributor session
  * @returns 429 - { error } - rate limit (10/60s/IP)
- * @returns 500 - { error } - Storage upload failed (message is opaque)
- * @sideeffect Writes a file to the `workshops` Storage bucket
+ * @returns 500 - { error } - R2 upload failed (message is opaque)
+ * @sideeffect Writes a file to the `tambalban-workshops` R2 bucket
  */
 app.post("/api/upload", async (c) => {
   const ip = clientIp(c.req.raw);
   if (!rateLimit(`upl:${ip}`, 10)) return c.json({ error: "Terlalu banyak permintaan" }, 429);
-  const token = getUserToken(c.req.header("Cookie"));
-  if (!token) return c.json({ error: "Harus masuk" }, 401);
+  const user = await getD1SessionUser(c);
+  if (!user) return c.json({ error: "Harus masuk" }, 401);
   const ct = c.req.header("Content-Type") ?? "";
   if (!ct.includes("multipart/form-data")) return c.json({ error: "Invalid content type" }, 400);
   const formData = await c.req.formData();
@@ -419,7 +443,7 @@ app.post("/api/upload", async (c) => {
     } catch {
       return c.json({ error: "Gambar tidak valid atau rusak. Gunakan JPG, PNG, atau WebP." }, 400);
     }
-    const url = await db.uploadImage(c.env, token, resized, "image/webp", "webp");
+    const url = await uploadWorkshopImage(c.env, resized, "image/webp", "webp");
     return c.json({ url });
   } catch {
     return c.json({ error: "Gagal mengunggah foto. Coba lagi nanti." }, 500);
@@ -432,9 +456,10 @@ app.post("/api/upload", async (c) => {
  * POST /api/submissions
  *
  * Contributor-only, rate-limited. Inserts a workshop into tambal_ban with source='user',
- * verified=false — invisible to the public until an admin publishes it. `source`/`verified`
- * are always server-set; a client cannot override either. `user_id` is stamped by a DB
- * trigger from the caller's JWT, never sent by the client.
+ * verified=false — invisible to the public until an admin publishes it. `source`/`verified`/
+ * `user_id` are always server-set from the session (lib/d1.ts's insertWorkshopD1), never
+ * accepted from the client — D1 has no RLS trigger equivalent, so the Worker does this
+ * directly instead of relying on a DB-side trigger like the old Postgres schema did.
  *
  * @body submissionSchema - name, lat/lon (Indonesia bounds), optional fields, 8 service booleans
  * @returns 200 - HTML toast; HX-Redirect: /?submitted=1
@@ -447,9 +472,8 @@ app.post("/api/upload", async (c) => {
 app.post("/api/submissions", async (c) => {
   const ip = clientIp(c.req.raw);
   if (!rateLimit(`sub:${ip}`, 5)) return c.html(errorToast("Terlalu banyak kiriman. Coba lagi nanti."), 429);
-  const token = getUserToken(c.req.header("Cookie"));
-  const email = userEmailFromToken(token);
-  if (!email || !token) return c.html(errorToast("Harus masuk dulu untuk menambah."), 401);
+  const user = await getD1SessionUser(c);
+  if (!user) return c.html(errorToast("Harus masuk dulu untuk menambah."), 401);
 
   let body: unknown;
   try {
@@ -462,32 +486,8 @@ app.post("/api/submissions", async (c) => {
   const parsed = submissionSchema.safeParse(body);
   if (!parsed.success) return c.html(errorToast(parsed.error.issues[0]?.message ?? "Input tidak valid"), 400);
 
-  const d = parsed.data;
-  const row: Record<string, string | number | boolean | null> = {
-    name: d.name,
-    lat: d.lat,
-    lon: d.lon,
-    source: "user",
-    verified: false,
-    address: d.address ?? null,
-    city: d.city ?? null,
-    province: d.province ?? null,
-    district: d.district ?? null,
-    phone: d.phone ?? null,
-    whatsapp: d.whatsapp ?? null,
-    opening_hours: d.opening_hours ?? null,
-    image_url: d.image_url ?? null,
-    motorcycle_tyres: d.motorcycle_tyres,
-    car_tyres: d.car_tyres,
-    truck_tyres: d.truck_tyres,
-    tubeless_repair: d.tubeless_repair,
-    vulcanizer: d.vulcanizer,
-    balancing: d.balancing,
-    spooring: d.spooring,
-    roadside_service: d.roadside_service,
-  };
   try {
-    await db.insertSubmission(c.env, token, row);
+    await d1.insertWorkshopD1(c.env, user.id, parsed.data);
   } catch {
     return c.html(errorToast("Gagal menyimpan kiriman. Coba lagi nanti."), 502);
   }
