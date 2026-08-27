@@ -181,7 +181,10 @@ const WORKSHOP_SELECT_D1 = [
   "created_at", "updated_at",
 ].join(", ");
 
-const WORKSHOP_ROW_CAP = 200;
+// Supabase's equivalent (fetchVerifiedWorkshops in supabase.ts) has no explicit cap — the
+// sitemap and unbounded map view both rely on getting every verified row back. 1000 covers
+// today's ~440 verified rows with headroom; raise again if that stops being true.
+const WORKSHOP_ROW_CAP = 1000;
 
 /**
  * Read-only, public. Always filters verified=1 — the D1 equivalent of the

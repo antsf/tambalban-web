@@ -7,8 +7,6 @@ import { setSessionCookie } from "./lib/admin-auth";
 import { resizeUploadImage } from "./lib/image";
 
 vi.mock("./lib/supabase", () => ({
-  fetchVerifiedWorkshops: vi.fn(),
-  fetchWorkshopById: vi.fn(),
   insertSubmission: vi.fn(),
   uploadImage: vi.fn(),
 }));
@@ -16,6 +14,8 @@ vi.mock("./lib/supabase", () => ({
 vi.mock("./lib/d1", () => ({
   fetchUnverifiedD1: vi.fn(),
   fetchAllWorkshopsD1: vi.fn(),
+  fetchVerifiedWorkshopsD1: vi.fn(),
+  fetchWorkshopByIdD1: vi.fn(),
   publishWorkshopD1: vi.fn(),
   removeWorkshopD1: vi.fn(),
   bulkPublishD1: vi.fn(),
@@ -199,10 +199,10 @@ describe("bulk publish/remove", () => {
 
 describe("public workshop API", () => {
   it("returns verified rows from the DB layer", async () => {
-    vi.mocked(db.fetchVerifiedWorkshops).mockResolvedValue([]);
+    vi.mocked(d1.fetchVerifiedWorkshopsD1).mockResolvedValue([]);
     const res = await app.request("/api/workshops?minLat=-11&maxLat=6&minLng=95&maxLng=141", {}, env);
     expect(res.status).toBe(200);
-    expect(db.fetchVerifiedWorkshops).toHaveBeenCalled();
+    expect(d1.fetchVerifiedWorkshopsD1).toHaveBeenCalled();
     expect(d1.fetchUnverifiedD1).not.toHaveBeenCalled();
   });
 
@@ -324,6 +324,6 @@ describe("workshop detail page", () => {
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).toContain("Bengkel tidak ditemukan");
-    expect(db.fetchWorkshopById).not.toHaveBeenCalled();
+    expect(d1.fetchWorkshopByIdD1).not.toHaveBeenCalled();
   });
 });

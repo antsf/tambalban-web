@@ -160,8 +160,16 @@ Not decided yet — revisit before Phase 3.
       `npm run dev` smoke-test pass and probably its own review checkpoint, not a
       continuation of this same pass.
 
-      Two options for the remaining (public/auth/submit) routes — decide before starting,
-      don't default silently:
+      **Public map/search done 2026-08-27** (next-lowest risk, read-only): `GET /`,
+      `GET /workshops/:id`, `GET /sitemap.xml`, `GET /api/workshops` now read D1. Caught and
+      fixed a real regression before it shipped: `fetchVerifiedWorkshopsD1`'s `WORKSHOP_ROW_CAP`
+      was 200 (set during Phase 2 when D1 had no real data), but Supabase's equivalent has no
+      cap and production now has ~440 verified rows — swapping as-is would've silently dropped
+      over half the sitemap and any unbounded map view. Raised the cap to 1000.
+
+      Still on Supabase: auth (register/login/logout) and submit (workshop create + review +
+      image upload — image upload also blocks on 4b/R2). Two options for those — decide before
+      starting, don't default silently:
       - **Merge:** rewrite `routes.ts` handlers to read/write D1 instead of Supabase REST,
         keep the existing cookie-session UX, retire `supabase-auth.ts`. Larger diff, one
         codebase.

@@ -90,8 +90,8 @@ app.get("/workshops/:id", async (c) => {
   const id = c.req.param("id");
   if (!UUID_RE.test(id)) return c.html(workshopDetailPage(null, s));
   try {
-    const w = await db.fetchWorkshopById(c.env, id);
-    return c.html(workshopDetailPage(w, s));
+    const w = await d1.fetchWorkshopByIdD1(c.env, id);
+    return c.html(workshopDetailPage(w ? toWorkshop(w) : null, s));
   } catch {
     return c.html(workshopDetailPage(null, s), 502);
   }
@@ -185,7 +185,7 @@ app.get("/sitemap.xml", async (c) => {
     { path: "/register", priority: "0.3", changefreq: "monthly" },
   ];
   try {
-    const rows = await db.fetchVerifiedWorkshops(c.env, {});
+    const rows = await d1.fetchVerifiedWorkshopsD1(c.env, {});
     for (const w of rows) urls.push({ path: `/workshops/${w.id}`, priority: "0.6", changefreq: "weekly" });
   } catch {
     // sitemap still works with static URLs if the DB read fails
@@ -224,12 +224,12 @@ app.get("/api/workshops", async (c) => {
   const { search, minLat, maxLat, minLng, maxLng } = parsed.data;
   const hasBbox = [minLat, maxLat, minLng, maxLng].every((v) => v !== undefined);
   try {
-    const rows = await db.fetchVerifiedWorkshops(c.env, {
+    const rows = await d1.fetchVerifiedWorkshopsD1(c.env, {
       search,
       bbox: hasBbox ? { minLat: minLat!, maxLat: maxLat!, minLng: minLng!, maxLng: maxLng! } : undefined,
     });
     c.header("Cache-Control", "public, max-age=60, s-maxage=300");
-    return c.json(rows);
+    return c.json(rows.map(toWorkshop));
   } catch (e) {
     return c.json({ error: "Gagal memuat data" }, 502);
   }
