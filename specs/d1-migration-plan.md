@@ -128,21 +128,34 @@ Not decided yet — revisit before Phase 3.
       as the live path** — `routes-d1.ts` stays mounted alongside `routes.ts`, unused by any
       production client, until 4c/4d actually point traffic at it.
 
-   b. **Storage: Supabase Storage → R2.** Not started (`wrangler.jsonc` has no `r2_buckets`
-      binding yet). Needed before Supabase can be fully retired, since `image_url`/`avatar_url`
-      values in the migrated data still point at
-      `https://xwqckmkjciptlbopmxjl.supabase.co/storage/v1/object/public/...`.
-      - Create `workshops` and `avatars` R2 buckets, add `r2_buckets` binding to
-        `wrangler.jsonc`.
-      - Copy existing objects Supabase Storage → R2 (script, same shape as
-        `migrate-supabase-to-d1.mjs`: list objects via Supabase Storage API, `PUT` into R2).
-      - Rewrite `image_url`/`avatar_url` in D1 to the new R2 public URL/custom domain, for
-        every row touched in Phase 3.
-      - Point the upload path (`lib/image.ts` caller) at the R2 binding instead of Supabase
-        Storage for new uploads.
-      - This sub-phase can run **after** 4a/4c land — old Supabase Storage URLs keep working
-        (Supabase stays live as fallback per the rule below), so it isn't a hard blocker for
-        flipping DB traffic to D1. It IS a hard blocker for Phase 5 (Supabase retirement).
+   b. **Storage: Supabase Storage → R2.** Buckets + historical-object migration done
+      2026-08-27/28 (`e67ffd6`, plus a follow-up data migration not yet in this file's
+      history at write time). Remaining: point the upload path (`lib/image.ts` caller in
+      `routes.ts`'s submit flow) at `lib/r2.ts` instead of Supabase Storage for *new*
+      uploads — deferred with the rest of submit (see 4c below).
+      - Buckets `tambalban-workshops` and `tambalban-avatars` created, bound in
+        `wrangler.jsonc` (`WORKSHOPS_BUCKET`, `AVATARS_BUCKET`).
+      - **Not served via R2's own `pub-*.r2.dev` domain.** Tested it directly and the
+        connection got intercepted by an Indonesian carrier's ("Internet Baik"/Telkomsel)
+        content filter — it MITMs with an unrelated expired cert instead of serving the
+        object. Since this app is Indonesia-only, that's a real reachability risk for a
+        meaningful fraction of users, not a one-off local-network fluke. Images are served
+        through this Worker instead: `GET /images/:bucket/:key` (routes.ts) streams from the
+        R2 binding, using the domain (`tambalban-web.antsf.workers.dev`) already proven
+        reachable by the rest of the site.
+      - Historical objects migrated: 130/131 workshop images + 3/3 avatars (one workshop
+        image hit a transient download failure from Supabase and was left on its old
+        Supabase Storage URL — Supabase stays live, so it still works, just not yet on R2;
+        safe to re-run `scripts/migrate-storage-to-r2.mjs` later to pick it up). Script does
+        download+upload with bounded concurrency (8) — a first version used
+        `execFileSync` for the R2 upload inside an `async` worker pool and appeared to run
+        in parallel but didn't: `execFileSync` blocks the whole event loop, so every
+        "concurrent" upload was actually serialized, ~134× slower than intended. Fixed by
+        switching to `execFile` + `util.promisify`.
+      - Objects get a fresh `crypto.randomUUID()` key on the R2 side rather than reusing the
+        source filename — one Firebase-legacy image had the exact same filename reused by
+        two different workshops; reusing it as an R2 key (flat per-bucket namespace) would
+        have made one workshop silently show the other's photo.
 
    c. **Web app cutover.** `routes.ts` (cookie+HTML, Supabase-backed) is the main app.
       **Admin routes done 2026-08-27** (lowest-risk slice, done first deliberately — see
