@@ -50,7 +50,7 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
 - [x] **`sitemap.xml`** (route; termasuk `/workshops/:id`) + **`robots.txt`** (disallow
       `/admin`, `/login`, `/register`).
       ⚠️ `robots.txt` menunjuk sitemap ke `tambalban.org`; deploy live sementara di
-      `tambalban-web.tambalban.workers.dev` — pastikan domain kustom sudah dipetakan.
+      `tambalban-web.antsf.workers.dev` — pastikan domain kustom sudah dipetakan.
 - [x] **JSON-LD LocalBusiness** di halaman detail (`pages.ts` `workshopDetailPage`).
 - [x] **Canonical URL** — dipasang di halaman detail (`layout.ts:93`, `pages.ts:260`).
 - [~] **manifest.webmanifest + icon.svg** — sudah ada di `worker/public/`;

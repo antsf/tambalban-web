@@ -20,7 +20,7 @@ Two mechanisms, by design — never mixed, never a third added:
 ## Base URL
 
 - Local development: `http://localhost:8787` (wrangler dev)
-- Production: `https://tambalban-web.tambalban.workers.dev`
+- Production: `https://tambalban-web.antsf.workers.dev`
 
 ---
 

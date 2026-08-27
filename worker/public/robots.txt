@@ -2,4 +2,4 @@ User-agent: *
 Disallow: /admin
 Disallow: /login
 Disallow: /register
-Sitemap: https://tambalban-web.tambalban.workers.dev/sitemap.xml
+Sitemap: https://tambalban-web.antsf.workers.dev/sitemap.xml

@@ -5,4 +5,4 @@
  * is mapped in the Cloudflare dashboard. Reverting to the branded domain is a
  * one-line change here — update public/robots.txt too.
  */
-export const SITE_URL = "https://tambalban-web.tambalban.workers.dev";
+export const SITE_URL = "https://tambalban-web.antsf.workers.dev";
