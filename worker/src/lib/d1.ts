@@ -235,3 +235,187 @@ export async function fetchReviewsD1(env: Env, workshopId: string): Promise<Revi
     .all<ReviewRowD1>();
   return results;
 }
+
+export interface WorkshopSubmissionInput {
+  name: string;
+  lat: number;
+  lon: number;
+  address?: string;
+  city?: string;
+  province?: string;
+  district?: string;
+  phone?: string;
+  whatsapp?: string;
+  website?: string;
+  instagram?: string;
+  opening_hours?: string;
+  image_url?: string;
+  motorcycle_tyres: boolean;
+  car_tyres: boolean;
+  truck_tyres: boolean;
+  tubeless_repair: boolean;
+  vulcanizer: boolean;
+  balancing: boolean;
+  spooring: boolean;
+  roadside_service: boolean;
+}
+
+/**
+ * user_id/source/verified are set here, never accepted from the caller — mirrors the
+ * user_insert RLS policy this replaces (see specs/d1-migration-plan.md's RLS table).
+ */
+export async function insertWorkshopD1(
+  env: Env,
+  userId: string,
+  d: WorkshopSubmissionInput,
+): Promise<WorkshopRowD1> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO tambal_ban (
+      id, name, lat, lon, address, city, province, district, phone, whatsapp, website,
+      instagram, opening_hours, image_url, source, verified, user_id,
+      motorcycle_tyres, car_tyres, truck_tyres, tubeless_repair, vulcanizer, balancing,
+      spooring, roadside_service, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      id, d.name, d.lat, d.lon, d.address ?? null, d.city ?? null, d.province ?? null,
+      d.district ?? null, d.phone ?? null, d.whatsapp ?? null, d.website ?? null,
+      d.instagram ?? null, d.opening_hours ?? null, d.image_url ?? null, userId,
+      d.motorcycle_tyres ? 1 : 0, d.car_tyres ? 1 : 0, d.truck_tyres ? 1 : 0,
+      d.tubeless_repair ? 1 : 0, d.vulcanizer ? 1 : 0, d.balancing ? 1 : 0,
+      d.spooring ? 1 : 0, d.roadside_service ? 1 : 0, now, now,
+    )
+    .run();
+  const row = await fetchWorkshopByIdOrOwnerD1(env, id, userId);
+  if (!row) throw new Error("insertWorkshopD1: row not found immediately after insert");
+  return row;
+}
+
+/** Like fetchWorkshopByIdD1, but also allows the submitter to read back their own unverified row. */
+async function fetchWorkshopByIdOrOwnerD1(env: Env, id: string, userId: string): Promise<WorkshopRowD1 | null> {
+  const row = await env.DB.prepare(
+    `SELECT ${WORKSHOP_SELECT_D1} FROM tambal_ban WHERE id = ? AND (verified = 1 OR user_id = ?)`,
+  )
+    .bind(id, userId)
+    .first<WorkshopRowD1>();
+  return row ?? null;
+}
+
+export async function insertReviewD1(
+  env: Env,
+  userId: string,
+  workshopId: string,
+  rating: number,
+  comment: string | undefined,
+): Promise<ReviewRowD1> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    "INSERT INTO reviews (id, workshop_id, user_id, rating, comment, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+  )
+    .bind(id, workshopId, userId, rating, comment ?? null, now)
+    .run();
+  return { id, workshop_id: workshopId, user_id: userId, rating, comment: comment ?? null, created_at: now };
+}
+
+export interface ProfileUpdateInput {
+  username?: string;
+  full_name?: string;
+  phone?: string;
+  avatar_url?: string;
+}
+
+/** Never touches email or password_hash — those need their own re-verification flow, not this route. */
+export async function updateProfileD1(env: Env, userId: string, d: ProfileUpdateInput): Promise<UserRow> {
+  await env.DB.prepare(
+    "UPDATE users SET username = ?, full_name = ?, phone = ?, avatar_url = ? WHERE id = ?",
+  )
+    .bind(d.username ?? null, d.full_name ?? null, d.phone ?? null, d.avatar_url ?? null, userId)
+    .run();
+  const row = await findUserById(env, userId);
+  if (!row) throw new Error("updateProfileD1: user not found after update");
+  return row;
+}
+
+export interface UnverifiedWorkshopD1 {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  district: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  opening_hours: string | null;
+  user_id: string | null;
+  created_at: string;
+}
+
+/** Admin queue — mirrors fetchUnverifiedSubmissions in supabase.ts (source='user' AND verified=0). */
+export async function fetchUnverifiedD1(env: Env): Promise<UnverifiedWorkshopD1[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, name, lat, lon, address, city, province, district, phone, whatsapp,
+            opening_hours, user_id, created_at
+     FROM tambal_ban WHERE source = 'user' AND verified = 0 ORDER BY created_at ASC`,
+  ).all<UnverifiedWorkshopD1>();
+  return results;
+}
+
+/** Admin: list every row in tambal_ban, filtered/paginated — mirrors fetchAllWorkshops in supabase.ts. */
+export async function fetchAllWorkshopsD1(
+  env: Env,
+  opts: { search?: string; verified?: boolean; source?: string; limit?: number; offset?: number } = {},
+): Promise<WorkshopRowD1[]> {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  if (opts.search) {
+    conditions.push("(name LIKE ? ESCAPE '\\' OR address LIKE ? ESCAPE '\\' OR city LIKE ? ESCAPE '\\')");
+    const escaped = `%${opts.search.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+    params.push(escaped, escaped, escaped);
+  }
+  if (opts.verified !== undefined) conditions.push(`verified = ${opts.verified ? 1 : 0}`);
+  if (opts.source) {
+    conditions.push("source = ?");
+    params.push(opts.source);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limit = opts.limit ?? 100;
+  const offset = opts.offset ?? 0;
+  const sql = `SELECT ${WORKSHOP_SELECT_D1} FROM tambal_ban ${where} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+  const { results } = await env.DB.prepare(sql).bind(...params).all<WorkshopRowD1>();
+  return results;
+}
+
+/** Admin: flip verified=1 and stamp verified_at. One-way — there is no un-publish route. */
+export async function publishWorkshopD1(env: Env, id: string): Promise<void> {
+  await env.DB.prepare("UPDATE tambal_ban SET verified = 1, verified_at = ? WHERE id = ?")
+    .bind(new Date().toISOString(), id)
+    .run();
+}
+
+/** Admin: permanently delete one row. */
+export async function removeWorkshopD1(env: Env, id: string): Promise<void> {
+  await env.DB.prepare("DELETE FROM tambal_ban WHERE id = ?").bind(id).run();
+}
+
+/** Admin: publish multiple rows in one call. */
+export async function bulkPublishD1(env: Env, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const placeholders = ids.map(() => "?").join(", ");
+  await env.DB.prepare(`UPDATE tambal_ban SET verified = 1, verified_at = ? WHERE id IN (${placeholders})`)
+    .bind(new Date().toISOString(), ...ids)
+    .run();
+}
+
+/** Admin: delete multiple rows in one call. */
+export async function bulkRemoveD1(env: Env, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const placeholders = ids.map(() => "?").join(", ");
+  await env.DB.prepare(`DELETE FROM tambal_ban WHERE id IN (${placeholders})`)
+    .bind(...ids)
+    .run();
+}

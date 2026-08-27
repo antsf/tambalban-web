@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appD1 } from "./routes-d1";
 import * as d1 from "./lib/d1";
 import * as legacyAuth from "./lib/legacy-auth";
+import { setSessionCookie } from "./lib/admin-auth";
 import type { Env } from "./lib/env";
 
 vi.mock("./lib/d1", () => ({
@@ -17,6 +18,15 @@ vi.mock("./lib/d1", () => ({
   fetchVerifiedWorkshopsD1: vi.fn(),
   fetchWorkshopByIdD1: vi.fn(),
   fetchReviewsD1: vi.fn(),
+  insertWorkshopD1: vi.fn(),
+  insertReviewD1: vi.fn(),
+  updateProfileD1: vi.fn(),
+  fetchUnverifiedD1: vi.fn(),
+  fetchAllWorkshopsD1: vi.fn(),
+  publishWorkshopD1: vi.fn(),
+  removeWorkshopD1: vi.fn(),
+  bulkPublishD1: vi.fn(),
+  bulkRemoveD1: vi.fn(),
 }));
 
 vi.mock("./lib/legacy-auth", () => ({
@@ -33,6 +43,30 @@ const env: Env = {
 };
 
 const UUID = "50493a0c-45be-480e-84f0-67814df98f29";
+
+const testUser = {
+  id: UUID,
+  email: "budi@example.com",
+  username: null,
+  full_name: null,
+  phone: null,
+  avatar_url: null,
+  created_at: "",
+  updated_at: "",
+};
+
+async function adminCookie(): Promise<string> {
+  const cookie = await setSessionCookie(env.ADMIN_SESSION_SECRET, false);
+  return cookie.split(";")[0];
+}
+
+function validSubmissionBody() {
+  return {
+    name: "Tambal Ban Jaya",
+    lat: -6.2,
+    lon: 106.8,
+  };
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -265,5 +299,218 @@ describe("GET /api/v2/workshops/:id", () => {
     vi.mocked(d1.fetchWorkshopByIdD1).mockResolvedValue(null);
     const res = await appD1.request(`/api/v2/workshops/${UUID}`, {}, env);
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v2/workshops", () => {
+  it("rejects without a bearer token, never inserting", async () => {
+    const res = await appD1.request(
+      "/api/v2/workshops",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(validSubmissionBody()) },
+      env,
+    );
+    expect(res.status).toBe(401);
+    expect(d1.insertWorkshopD1).not.toHaveBeenCalled();
+  });
+
+  it("rejects an out-of-Indonesia-bounds submission", async () => {
+    vi.mocked(d1.getSessionUser).mockResolvedValue(testUser);
+    const res = await appD1.request(
+      "/api/v2/workshops",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer tok123" },
+        body: JSON.stringify({ name: "Jakarta Shop", lat: 50, lon: 50 }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(d1.insertWorkshopD1).not.toHaveBeenCalled();
+  });
+
+  it("inserts as the logged-in user and returns the created row", async () => {
+    vi.mocked(d1.getSessionUser).mockResolvedValue(testUser);
+    vi.mocked(d1.insertWorkshopD1).mockResolvedValue({
+      id: UUID, name: "Tambal Ban Jaya", lat: -6.2, lon: 106.8, address: null, city: null,
+      province: null, district: null, phone: null, whatsapp: null, website: null, instagram: null,
+      opening_hours: null, image_url: null, source: "user", verified: 0, verified_at: null,
+      motorcycle_tyres: 0, car_tyres: 0, truck_tyres: 0, tubeless_repair: 0, vulcanizer: 0,
+      balancing: 0, spooring: 0, roadside_service: 0, created_at: "", updated_at: "",
+    });
+    const res = await appD1.request(
+      "/api/v2/workshops",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer tok123" },
+        body: JSON.stringify(validSubmissionBody()),
+      },
+      env,
+    );
+    expect(res.status).toBe(201);
+    expect(d1.insertWorkshopD1).toHaveBeenCalledWith(env, UUID, expect.objectContaining({ name: "Tambal Ban Jaya" }));
+    const bodyOut = (await res.json()) as any;
+    expect(bodyOut.verified).toBe(0);
+  });
+});
+
+describe("POST /api/v2/workshops/:id/reviews", () => {
+  it("rejects without a bearer token", async () => {
+    const res = await appD1.request(
+      `/api/v2/workshops/${UUID}/reviews`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rating: 5 }) },
+      env,
+    );
+    expect(res.status).toBe(401);
+    expect(d1.insertReviewD1).not.toHaveBeenCalled();
+  });
+
+  it("rejects a rating out of 1..5", async () => {
+    vi.mocked(d1.getSessionUser).mockResolvedValue(testUser);
+    const res = await appD1.request(
+      `/api/v2/workshops/${UUID}/reviews`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer tok123" },
+        body: JSON.stringify({ rating: 9 }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(d1.insertReviewD1).not.toHaveBeenCalled();
+  });
+
+  it("stamps user_id from the session, not the request body", async () => {
+    vi.mocked(d1.getSessionUser).mockResolvedValue(testUser);
+    vi.mocked(d1.insertReviewD1).mockResolvedValue({
+      id: "r1", workshop_id: UUID, user_id: UUID, rating: 5, comment: "Mantap", created_at: "",
+    });
+    const res = await appD1.request(
+      `/api/v2/workshops/${UUID}/reviews`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer tok123" },
+        body: JSON.stringify({ rating: 5, comment: "Mantap", user_id: "someone-else" }),
+      },
+      env,
+    );
+    expect(res.status).toBe(201);
+    expect(d1.insertReviewD1).toHaveBeenCalledWith(env, UUID, UUID, 5, "Mantap");
+  });
+});
+
+describe("PATCH /api/v2/profile", () => {
+  it("rejects without a bearer token", async () => {
+    const res = await appD1.request(
+      "/api/v2/profile",
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: "budi" }) },
+      env,
+    );
+    expect(res.status).toBe(401);
+    expect(d1.updateProfileD1).not.toHaveBeenCalled();
+  });
+
+  it("updates profile fields for the session's own user", async () => {
+    vi.mocked(d1.getSessionUser).mockResolvedValue(testUser);
+    vi.mocked(d1.updateProfileD1).mockResolvedValue({ ...testUser, username: "budi" });
+    const res = await appD1.request(
+      "/api/v2/profile",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer tok123" },
+        body: JSON.stringify({ username: "budi" }),
+      },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(d1.updateProfileD1).toHaveBeenCalledWith(env, UUID, expect.objectContaining({ username: "budi" }));
+  });
+});
+
+describe("admin routes", () => {
+  it("GET /api/v2/admin/submissions rejects without an admin cookie", async () => {
+    const res = await appD1.request("/api/v2/admin/submissions", {}, env);
+    expect(res.status).toBe(401);
+    expect(d1.fetchUnverifiedD1).not.toHaveBeenCalled();
+  });
+
+  it("GET /api/v2/admin/submissions returns the queue with a valid admin cookie", async () => {
+    vi.mocked(d1.fetchUnverifiedD1).mockResolvedValue([]);
+    const res = await appD1.request("/api/v2/admin/submissions", { headers: { Cookie: await adminCookie() } }, env);
+    expect(res.status).toBe(200);
+    expect(d1.fetchUnverifiedD1).toHaveBeenCalled();
+  });
+
+  it("POST .../publish rejects without an admin cookie, never touching the row", async () => {
+    const res = await appD1.request(`/api/v2/admin/submissions/${UUID}/publish`, { method: "POST" }, env);
+    expect(res.status).toBe(401);
+    expect(d1.publishWorkshopD1).not.toHaveBeenCalled();
+  });
+
+  it("POST .../publish flips verified=1 with a valid admin cookie", async () => {
+    const res = await appD1.request(
+      `/api/v2/admin/submissions/${UUID}/publish`,
+      { method: "POST", headers: { Cookie: await adminCookie() } },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(d1.publishWorkshopD1).toHaveBeenCalledWith(env, UUID);
+  });
+
+  it("POST .../publish rejects a non-UUID id before touching D1", async () => {
+    const res = await appD1.request(
+      "/api/v2/admin/submissions/not-a-uuid/publish",
+      { method: "POST", headers: { Cookie: await adminCookie() } },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(d1.publishWorkshopD1).not.toHaveBeenCalled();
+  });
+
+  it("POST .../remove deletes the row with a valid admin cookie", async () => {
+    const res = await appD1.request(
+      `/api/v2/admin/submissions/${UUID}/remove`,
+      { method: "POST", headers: { Cookie: await adminCookie() } },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(d1.removeWorkshopD1).toHaveBeenCalledWith(env, UUID);
+  });
+
+  it("bulk publish drops non-UUID entries and rejects an empty result", async () => {
+    const res = await appD1.request(
+      "/api/v2/admin/bulk/publish",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: await adminCookie() },
+        body: JSON.stringify({ ids: ["not-a-uuid", 42, null] }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(d1.bulkPublishD1).not.toHaveBeenCalled();
+  });
+
+  it("bulk publish accepts valid UUIDs and filters out invalid ones", async () => {
+    const res = await appD1.request(
+      "/api/v2/admin/bulk/publish",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: await adminCookie() },
+        body: JSON.stringify({ ids: [UUID, "not-a-uuid"] }),
+      },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(d1.bulkPublishD1).toHaveBeenCalledWith(env, [UUID]);
+  });
+
+  it("bulk remove requires an admin cookie", async () => {
+    const res = await appD1.request(
+      "/api/v2/admin/bulk/remove",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [UUID] }) },
+      env,
+    );
+    expect(res.status).toBe(401);
+    expect(d1.bulkRemoveD1).not.toHaveBeenCalled();
   });
 });

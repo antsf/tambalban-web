@@ -109,21 +109,24 @@ Not decided yet — revisit before Phase 3.
 
 4. **Cutover — remaining work, in dependency order:**
 
-   a. **Finish the D1 write API in `routes-d1.ts`** (currently read-only + auth):
-      - `POST /api/v2/workshops` — submit, mirrors `routes.ts` semantics: `user_id`/`source='user'`/
-        `verified=0` set server-side from the session, never client-supplied; Indonesia bounds
-        validation (reuse `lib/validation.ts` schemas — don't fork them).
-      - `POST /api/v2/workshops/:id/reviews` — stamp `user_id` from session, `rating` 1..5 check.
-      - `PATCH /api/v2/profile` — update `username`/`full_name`/`phone`/`avatar_url`, never
-        `password_hash` or `email` (email change would need its own re-verification flow — out
-        of scope, keep it disabled).
-      - Admin routes: queue (`GET`, unverified `tambal_ban` rows), publish (`PATCH verified=1`),
-        matching the one-way-publish rule (no unpublish route) and `isAdmin()` HMAC gate — same
-        contract as `routes.ts`'s admin routes, just against D1.
-      - Rate limiting on the new write/geocode-adjacent routes — reuse `lib/rate-limit.ts`
-        (already storage-agnostic, in-memory per-instance).
-      - Add Vitest coverage for every new route before merging (per this repo's testing rule)
-        — `routes.test.ts` / `routes-d1.test.ts` already establish the pattern.
+   a. ~~**Finish the D1 write API in `routes-d1.ts`.**~~ Done 2026-08-27. Added: `POST
+      /api/v2/workshops` (submit — `user_id`/`source='user'`/`verified=0` set server-side from
+      the session, never client-supplied; reuses `submissionSchema`), `POST
+      /api/v2/workshops/:id/reviews` (stamps `user_id` from session, `reviewSchema` 1..5 rating
+      check), `PATCH /api/v2/profile` (`username`/`full_name`/`phone`/`avatar_url` only — never
+      `password_hash` or `email`), and admin routes `GET /api/v2/admin/submissions` (queue),
+      `GET /api/v2/admin/workshops`, `POST .../publish`, `POST .../remove`, `POST
+      .../bulk/publish`, `POST .../bulk/remove` — all behind the same `isAdmin()` HMAC-cookie
+      gate as `routes.ts` (not bearer — admin is browser-only). New `d1.ts` functions:
+      `insertWorkshopD1`, `insertReviewD1`, `updateProfileD1`, `fetchUnverifiedD1`,
+      `fetchAllWorkshopsD1`, `publishWorkshopD1`, `removeWorkshopD1`, `bulkPublishD1`,
+      `bulkRemoveD1`. New validation schemas: `reviewSchema`, `profileUpdateSchema`. Rate
+      limited (`v2sub`/`v2rev` keys) via the existing `lib/rate-limit.ts`. 17 new Vitest cases
+      in `routes-d1.test.ts` (101 total passing), plus the exact `INSERT`/`UPDATE` statements
+      were smoke-tested against a real local D1 instance (`wrangler d1 execute --local`) to
+      catch schema-mismatch bugs mocked unit tests can't. **Still not wired into `index.ts`
+      as the live path** — `routes-d1.ts` stays mounted alongside `routes.ts`, unused by any
+      production client, until 4c/4d actually point traffic at it.
 
    b. **Storage: Supabase Storage → R2.** Not started (`wrangler.jsonc` has no `r2_buckets`
       binding yet). Needed before Supabase can be fully retired, since `image_url`/`avatar_url`

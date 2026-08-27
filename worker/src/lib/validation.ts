@@ -97,6 +97,18 @@ export const adminReviewsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional().default(200),
 });
 
+export const reviewSchema = z.object({
+  rating: z.coerce.number().int().min(1, "Rating minimal 1").max(5, "Rating maksimal 5"),
+  comment: optionalText(1000),
+});
+
+export const profileUpdateSchema = z.object({
+  username: optionalText(50),
+  full_name: optionalText(100),
+  phone: optionalText(30),
+  avatar_url: optionalHttpUrl(500),
+});
+
 export const bboxSchema = z
   .object({
     search: z.string().trim().max(200).optional(),

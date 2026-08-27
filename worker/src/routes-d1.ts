@@ -3,18 +3,25 @@ import type { Context } from "hono";
 import type { Env } from "./lib/env";
 import * as d1 from "./lib/d1";
 import { verifyAgainstSupabaseAuth } from "./lib/legacy-auth";
-import { loginSchema, bboxSchema } from "./lib/validation";
+import { isAdmin } from "./lib/admin-auth";
+import {
+  loginSchema,
+  bboxSchema,
+  submissionSchema,
+  reviewSchema,
+  profileUpdateSchema,
+  adminDataQuerySchema,
+} from "./lib/validation";
 import { rateLimit, clientIp } from "./lib/rate-limit";
 
 /**
- * Bearer-token JSON API for the Android app — Phase 2 of the Supabase -> D1 migration
+ * Bearer-token JSON API for the Android app — Phase 2+4a of the Supabase -> D1 migration
  * (specs/d1-migration-plan.md). Deliberately isolated from routes.ts: nothing here is wired
  * into the live cookie/HTML surface, and none of it is called by production clients yet.
  *
- * Scope for this phase, per the plan: read-only against D1 for workshops/reviews, plus
- * register/login/logout (needed to exercise the session path at all). Submitting a workshop,
- * posting a review, and editing a profile are NOT implemented here yet — those are write
- * paths the plan explicitly defers until the read side is verified.
+ * Covers: register/login/logout/profile, read+write workshops/reviews, and the admin queue —
+ * mirrors routes.ts's Supabase-backed equivalents route-for-route, but returns JSON everywhere
+ * (routes.ts mixes in HTML/HTMX responses for the browser; this API never does).
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -133,5 +140,172 @@ appD1.get("/api/v2/workshops/:id/reviews", async (c) => {
     return c.json(rows);
   } catch {
     return c.json({ error: "Gagal memuat data" }, 502);
+  }
+});
+
+appD1.post("/api/v2/workshops", async (c) => {
+  const user = await bearerUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const ip = clientIp(c.req.raw);
+  if (!rateLimit(`v2sub:${ip}`, 5)) return c.json({ error: "Terlalu banyak kiriman. Coba lagi nanti." }, 429);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Permintaan tidak valid" }, 400);
+  }
+  const parsed = submissionSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Input tidak valid" }, 400);
+
+  try {
+    const row = await d1.insertWorkshopD1(c.env, user.id, parsed.data);
+    return c.json(row, 201);
+  } catch {
+    return c.json({ error: "Gagal menyimpan kiriman. Coba lagi nanti." }, 502);
+  }
+});
+
+appD1.post("/api/v2/workshops/:id/reviews", async (c) => {
+  const user = await bearerUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const workshopId = c.req.param("id");
+  if (!UUID_RE.test(workshopId)) return c.json({ error: "Invalid ID" }, 400);
+  const ip = clientIp(c.req.raw);
+  if (!rateLimit(`v2rev:${ip}`, 10)) return c.json({ error: "Terlalu banyak ulasan. Coba lagi nanti." }, 429);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Permintaan tidak valid" }, 400);
+  }
+  const parsed = reviewSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Input tidak valid" }, 400);
+
+  try {
+    const row = await d1.insertReviewD1(c.env, user.id, workshopId, parsed.data.rating, parsed.data.comment);
+    return c.json(row, 201);
+  } catch {
+    return c.json({ error: "Gagal menyimpan ulasan. Coba lagi nanti." }, 502);
+  }
+});
+
+appD1.patch("/api/v2/profile", async (c) => {
+  const user = await bearerUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Permintaan tidak valid" }, 400);
+  }
+  const parsed = profileUpdateSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Input tidak valid" }, 400);
+
+  try {
+    const row = await d1.updateProfileD1(c.env, user.id, parsed.data);
+    return c.json(row);
+  } catch {
+    return c.json({ error: "Gagal memperbarui profil." }, 502);
+  }
+});
+
+// ---------- admin (same isAdmin() HMAC-cookie gate as routes.ts — browser-only, not bearer) ----------
+
+const adminGateD1 = async (c: Context<{ Bindings: Env }>): Promise<boolean> =>
+  isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET);
+
+appD1.get("/api/v2/admin/submissions", async (c) => {
+  if (!(await adminGateD1(c))) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    return c.json(await d1.fetchUnverifiedD1(c.env));
+  } catch {
+    return c.json({ error: "Gagal memuat" }, 502);
+  }
+});
+
+appD1.get("/api/v2/admin/workshops", async (c) => {
+  if (!(await adminGateD1(c))) return c.json({ error: "Unauthorized" }, 401);
+  const parsed = adminDataQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) return c.json({ error: "Parameter tidak valid" }, 400);
+  try {
+    const rows = await d1.fetchAllWorkshopsD1(c.env, {
+      search: parsed.data.search,
+      verified: parsed.data.verified === "true" ? true : parsed.data.verified === "false" ? false : undefined,
+      source: parsed.data.source,
+      limit: parsed.data.limit,
+      offset: parsed.data.offset,
+    });
+    return c.json(rows);
+  } catch {
+    return c.json({ error: "Gagal memuat" }, 502);
+  }
+});
+
+/** Admin-only, one-way — no un-publish route, matching routes.ts's contract exactly. */
+appD1.post("/api/v2/admin/submissions/:id/publish", async (c) => {
+  if (!(await adminGateD1(c))) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("id");
+  if (!UUID_RE.test(id)) return c.json({ error: "Invalid ID" }, 400);
+  try {
+    await d1.publishWorkshopD1(c.env, id);
+    return c.body(null, 200);
+  } catch {
+    return c.json({ error: "Gagal menerbitkan." }, 502);
+  }
+});
+
+appD1.post("/api/v2/admin/submissions/:id/remove", async (c) => {
+  if (!(await adminGateD1(c))) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("id");
+  if (!UUID_RE.test(id)) return c.json({ error: "Invalid ID" }, 400);
+  try {
+    await d1.removeWorkshopD1(c.env, id);
+    return c.body(null, 200);
+  } catch {
+    return c.json({ error: "Gagal menghapus." }, 502);
+  }
+});
+
+function validUuids(body: unknown): string[] {
+  const ids = body && typeof body === "object" ? (body as Record<string, unknown>).ids : undefined;
+  return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string" && UUID_RE.test(x)) : [];
+}
+
+appD1.post("/api/v2/admin/bulk/publish", async (c) => {
+  if (!(await adminGateD1(c))) return c.json({ error: "Unauthorized" }, 401);
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid" }, 400);
+  }
+  const ids = validUuids(body);
+  if (!ids.length) return c.json({ error: "No IDs" }, 400);
+  try {
+    await d1.bulkPublishD1(c.env, ids);
+    return c.json({ published: ids.length });
+  } catch {
+    return c.json({ error: "Gagal menerbitkan." }, 502);
+  }
+});
+
+appD1.post("/api/v2/admin/bulk/remove", async (c) => {
+  if (!(await adminGateD1(c))) return c.json({ error: "Unauthorized" }, 401);
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid" }, 400);
+  }
+  const ids = validUuids(body);
+  if (!ids.length) return c.json({ error: "No IDs" }, 400);
+  try {
+    await d1.bulkRemoveD1(c.env, ids);
+    return c.json({ removed: ids.length });
+  } catch {
+    return c.json({ error: "Gagal menghapus." }, 502);
   }
 });
