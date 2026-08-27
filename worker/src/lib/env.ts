@@ -5,6 +5,10 @@ export interface Env {
   ADMIN_PASSWORD: string;
   ADMIN_SESSION_SECRET: string;
   NOMINATIM_USER_AGENT?: string;
-  /** D1 migration (Phase 2, read-only-verify) — see specs/d1-migration-plan.md. Not yet in the production request path. */
+  /** D1 migration — see specs/d1-migration-plan.md. Live for admin routes + public map/search (Phase 4c); auth/submit still on Supabase. */
   DB: D1Database;
+  /** R2 migration (Phase 4b) — replaces Supabase Storage's `workshops` bucket. Served publicly via GET /images/workshops/:key (lib/r2.ts), not R2's own r2.dev domain. */
+  WORKSHOPS_BUCKET: R2Bucket;
+  /** R2 migration (Phase 4b) — replaces Supabase Storage's `avatars` bucket. Served publicly via GET /images/avatars/:key. */
+  AVATARS_BUCKET: R2Bucket;
 }

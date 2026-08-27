@@ -41,6 +41,8 @@ const env: Env = {
   ADMIN_SESSION_SECRET: "test-secret",
   // Not exercised by any route under test here — see routes-d1.test.ts for the D1 surface.
   DB: {} as unknown as D1Database,
+  WORKSHOPS_BUCKET: { get: vi.fn(), put: vi.fn() } as unknown as R2Bucket,
+  AVATARS_BUCKET: { get: vi.fn(), put: vi.fn() } as unknown as R2Bucket,
 };
 
 const UUID = "50493a0c-45be-480e-84f0-67814df98f29";
@@ -325,5 +327,47 @@ describe("workshop detail page", () => {
     const body = await res.text();
     expect(body).toContain("Bengkel tidak ditemukan");
     expect(d1.fetchWorkshopByIdD1).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /images/:bucket/:key", () => {
+  it("404s on a malformed key without touching R2", async () => {
+    const res = await app.request("/images/workshops/../../secret", {}, env);
+    expect(res.status).toBe(404);
+    expect(env.WORKSHOPS_BUCKET.get).not.toHaveBeenCalled();
+  });
+
+  it("404s on an unknown bucket name", async () => {
+    const res = await app.request("/images/nope/abc123.webp", {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("404s when the object doesn't exist in R2", async () => {
+    vi.mocked(env.WORKSHOPS_BUCKET.get).mockResolvedValue(null);
+    const res = await app.request("/images/workshops/abc123.webp", {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("serves the object with its content type and a long-lived cache header", async () => {
+    const body = new ReadableStream();
+    vi.mocked(env.WORKSHOPS_BUCKET.get).mockResolvedValue({
+      body,
+      httpMetadata: { contentType: "image/webp" },
+    } as unknown as R2ObjectBody);
+    const res = await app.request("/images/workshops/abc123.webp", {}, env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/webp");
+    expect(res.headers.get("Cache-Control")).toContain("immutable");
+  });
+
+  it("routes avatars to the avatars bucket, not workshops", async () => {
+    vi.mocked(env.AVATARS_BUCKET.get).mockResolvedValue({
+      body: new ReadableStream(),
+      httpMetadata: { contentType: "image/webp" },
+    } as unknown as R2ObjectBody);
+    const res = await app.request("/images/avatars/abc123.webp", {}, env);
+    expect(res.status).toBe(200);
+    expect(env.AVATARS_BUCKET.get).toHaveBeenCalledWith("abc123.webp");
+    expect(env.WORKSHOPS_BUCKET.get).not.toHaveBeenCalled();
   });
 });

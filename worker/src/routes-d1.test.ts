@@ -40,6 +40,8 @@ const env: Env = {
   ADMIN_PASSWORD: "hunter2",
   ADMIN_SESSION_SECRET: "test-secret",
   DB: {} as unknown as D1Database,
+  WORKSHOPS_BUCKET: {} as unknown as R2Bucket,
+  AVATARS_BUCKET: {} as unknown as R2Bucket,
 };
 
 const UUID = "50493a0c-45be-480e-84f0-67814df98f29";

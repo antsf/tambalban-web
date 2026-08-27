@@ -18,5 +18,15 @@
                               "migrations_dir":  "migrations/d1"
                           }
                       ],
+    "r2_buckets":  [
+                          {
+                              "binding":  "WORKSHOPS_BUCKET",
+                              "bucket_name":  "tambalban-workshops"
+                          },
+                          {
+                              "binding":  "AVATARS_BUCKET",
+                              "bucket_name":  "tambalban-avatars"
+                          }
+                      ],
     "$schema":  "node_modules/wrangler/config-schema.json"
 }

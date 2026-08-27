@@ -63,6 +63,29 @@ app.use("*", securityHeaders);
 
 const isSecure = (url: string): boolean => url.startsWith("https://");
 
+// ---------- images (R2) ----------
+
+const IMAGE_KEY_RE = /^[a-zA-Z0-9-]+\.(webp|jpg|jpeg|png)$/;
+
+/**
+ * Serves R2 objects through this Worker's own domain rather than R2's `pub-*.r2.dev` domain
+ * — see lib/r2.ts for why (that domain got MITM'd by a carrier's content filter in testing).
+ * Keys are `<uuid>.<ext>`, immutable once uploaded (a new upload always gets a fresh UUID),
+ * so a long-lived cache header is safe.
+ */
+app.get("/images/:bucket/:key", async (c) => {
+  const key = c.req.param("key");
+  if (!IMAGE_KEY_RE.test(key)) return c.notFound();
+  const bucketParam = c.req.param("bucket");
+  const bucket = bucketParam === "workshops" ? c.env.WORKSHOPS_BUCKET : bucketParam === "avatars" ? c.env.AVATARS_BUCKET : null;
+  if (!bucket) return c.notFound();
+  const object = await bucket.get(key);
+  if (!object) return c.notFound();
+  c.header("Cache-Control", "public, max-age=31536000, immutable");
+  c.header("Content-Type", object.httpMetadata?.contentType ?? "application/octet-stream");
+  return c.body(object.body);
+});
+
 // ---------- pages ----------
 
 interface SessionState {
