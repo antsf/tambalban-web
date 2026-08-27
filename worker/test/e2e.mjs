@@ -15,6 +15,16 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:8787";
+const IS_LOCAL = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE);
+if (!IS_LOCAL && process.env.ALLOW_REMOTE_E2E !== "1") {
+  console.error(
+    `Refusing to run against ${BASE} — this suite writes real rows (test workshops, ` +
+      `admin actions) into whatever D1/Supabase database BASE_URL points at, and there is ` +
+      `no separate test database. Set ALLOW_REMOTE_E2E=1 if you really mean to hit a remote ` +
+      `deployment.`,
+  );
+  process.exit(1);
+}
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ADMIN_PASSWORD =
   process.env.ADMIN_PASSWORD ??
