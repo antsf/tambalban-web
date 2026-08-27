@@ -1,8 +1,10 @@
 # Migration Plan — Supabase (Postgres+GoTrue+PostgREST) → Cloudflare D1+Workers
 
-Status: **Phase 1 in progress.** Nothing in production has changed yet — Supabase remains
-the live backend for both `tambalban` (Android) and `tambalban-web` until Phase 4 (cutover)
-is verified stable.
+Status: **Phase 3 done (2026-08-27).** D1 schema, bearer-token read API, and historical data
+(55 users, 323 tambal_ban, 0 reviews) are all live in production D1. Nothing reads or writes
+D1 in real traffic yet — Supabase remains the live backend for both `tambalban` (Android) and
+`tambalban-web` until Phase 4 (cutover) is verified stable. See Phase 4/5 breakdown below for
+what's still missing before Supabase can be retired.
 
 ## Why
 
@@ -95,19 +97,96 @@ Not decided yet — revisit before Phase 3.
 
 ## Phased plan
 
-1. **Setup D1 + schema.** Create the D1 database, apply `0001_init.sql`. Nothing in production
-   changes. *(current phase)*
-2. **Worker API, read-only-verify first.** Add the new bearer-token routes mirroring what
-   Android needs, running in parallel with Supabase — read-only against D1 (seeded with a
-   copy of current data) to verify query correctness before any write path is trusted.
-3. **Historical data migration.** Dump Supabase (`supabase db dump --data-only`), transform
-   (drop rating/total_reviews, merge auth.users+users_profile, rewrite storage URLs, convert
-   booleans/timestamps), load via `wrangler d1 execute`. Resolve the password-migration
-   question above before this phase.
-4. **Cutover.** Point the Android app and the web app at the new Worker routes /
-   bearer-auth flow. Keep Supabase live and unmodified during this phase as a fallback.
-5. **Retire Supabase** — only after Phase 4 has been stable for several days. Pause/delete
-   the Supabase project only then, never before.
+1. ~~**Setup D1 + schema.**~~ Done (`5bc3f12`).
+2. ~~**Worker API, read-only-verify first.**~~ Done (`4f11d35`, `6e82294`). `routes-d1.ts`
+   currently covers: `POST /api/v2/auth/{register,login,logout}`, `GET /api/v2/profile`,
+   `GET /api/v2/workshops`, `GET /api/v2/workshops/:id`, `GET /api/v2/workshops/:id/reviews`.
+   Mounted alongside `routes.ts` (Supabase) in `index.ts`, not replacing it.
+3. ~~**Historical data migration.**~~ Done 2026-08-27 (`71bd40e`,
+   `scripts/migrate-supabase-to-d1.mjs`). Production D1: 55 users, 323 tambal_ban (315
+   verified), 0 reviews — counts match Supabase exactly. Password migration question resolved:
+   "migrate on first login" (Phase 3a, `fad527f`), already deployed and verified in prod.
+
+4. **Cutover — remaining work, in dependency order:**
+
+   a. **Finish the D1 write API in `routes-d1.ts`** (currently read-only + auth):
+      - `POST /api/v2/workshops` — submit, mirrors `routes.ts` semantics: `user_id`/`source='user'`/
+        `verified=0` set server-side from the session, never client-supplied; Indonesia bounds
+        validation (reuse `lib/validation.ts` schemas — don't fork them).
+      - `POST /api/v2/workshops/:id/reviews` — stamp `user_id` from session, `rating` 1..5 check.
+      - `PATCH /api/v2/profile` — update `username`/`full_name`/`phone`/`avatar_url`, never
+        `password_hash` or `email` (email change would need its own re-verification flow — out
+        of scope, keep it disabled).
+      - Admin routes: queue (`GET`, unverified `tambal_ban` rows), publish (`PATCH verified=1`),
+        matching the one-way-publish rule (no unpublish route) and `isAdmin()` HMAC gate — same
+        contract as `routes.ts`'s admin routes, just against D1.
+      - Rate limiting on the new write/geocode-adjacent routes — reuse `lib/rate-limit.ts`
+        (already storage-agnostic, in-memory per-instance).
+      - Add Vitest coverage for every new route before merging (per this repo's testing rule)
+        — `routes.test.ts` / `routes-d1.test.ts` already establish the pattern.
+
+   b. **Storage: Supabase Storage → R2.** Not started (`wrangler.jsonc` has no `r2_buckets`
+      binding yet). Needed before Supabase can be fully retired, since `image_url`/`avatar_url`
+      values in the migrated data still point at
+      `https://xwqckmkjciptlbopmxjl.supabase.co/storage/v1/object/public/...`.
+      - Create `workshops` and `avatars` R2 buckets, add `r2_buckets` binding to
+        `wrangler.jsonc`.
+      - Copy existing objects Supabase Storage → R2 (script, same shape as
+        `migrate-supabase-to-d1.mjs`: list objects via Supabase Storage API, `PUT` into R2).
+      - Rewrite `image_url`/`avatar_url` in D1 to the new R2 public URL/custom domain, for
+        every row touched in Phase 3.
+      - Point the upload path (`lib/image.ts` caller) at the R2 binding instead of Supabase
+        Storage for new uploads.
+      - This sub-phase can run **after** 4a/4c land — old Supabase Storage URLs keep working
+        (Supabase stays live as fallback per the rule below), so it isn't a hard blocker for
+        flipping DB traffic to D1. It IS a hard blocker for Phase 5 (Supabase retirement).
+
+   c. **Web app cutover.** `routes.ts` (cookie+HTML, Supabase-backed) is the main app; nothing
+      here has an equivalent on D1 yet. Two options — decide before starting, don't default
+      silently:
+      - **Merge:** rewrite `routes.ts` handlers to read/write D1 instead of Supabase REST,
+        keep the existing cookie-session UX, retire `supabase-auth.ts`. Larger diff, one
+        codebase.
+      - **Swap:** keep `routes-d1.ts`'s bearer-token API, add a thin cookie-session shim in
+        front of it for the browser routes. Smaller diff, but means running two auth
+        mechanisms (bearer + cookie) against one `sessions` table.
+      Recommendation: **Merge** — the "one Worker, not two" topology decision above already
+      commits to one D1 binding shared by both surfaces; keeping `routes.ts` on Supabase
+      indefinitely defeats that. Do this incrementally, route group by route group (public
+      map/search first — read-only, lowest risk — then submit, then admin), each behind its
+      own smoke test before moving to the next.
+
+   d. **Android app cutover.** `tambalban/app/.../core/utils/SupabaseConfig.kt` currently
+      points directly at `https://xwqckmkjciptlbopmxjl.supabase.co/`. Switch
+      `SupabaseService`/`ApiClient`/`AuthInterceptor` (in `tambalban/`, not this repo) to call
+      the Worker's `/api/v2/*` routes with `Authorization: Bearer <token>` instead of Supabase
+      REST + Supabase Auth. This is a **separate PR in the `tambalban` repo**, coordinate
+      timing with 4a (the write routes must exist first) and 4c (bump `SupabaseConfig`'s base
+      URL to the Worker's domain once the equivalent D1 routes are confirmed stable).
+      Ship behind a feature flag or staged rollout if the app has one; if not, at minimum
+      verify against a beta/internal build before a public Play Store release.
+
+   e. **Soak.** Once 4a–4d are live, run with Supabase still fully functional as an untouched
+      fallback (read AND write — do not put Supabase in read-only mode yet) for **several days
+      of real traffic** before Phase 5. Watch: Worker error rate, D1 query latency/errors in
+      Cloudflare Observability, any user reports of missing submissions/reviews.
+
+5. **Retire Supabase** — only after Phase 4 (all of 4a–4e, including storage) has been stable
+   for several days.
+   - Final incremental data sync: re-run (or re-diff) `migrate-supabase-to-d1.mjs` against
+     Supabase to catch any writes that happened during the Phase 4 soak window before Supabase
+     goes away — this repo's D1 write paths and Supabase were both live during 4e, so D1 may
+     be missing rows Supabase gained during that window if traffic wasn't already 100% cut
+     over the moment 4a shipped.
+   - Remove `routes.ts`'s Supabase code paths, `supabase-auth.ts`, `lib/supabase.ts`, the
+     `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` vars from `wrangler.jsonc`,
+     and the `SUPABASE_SERVICE_ROLE_KEY` secret.
+   - Pause, then after a further waiting period, delete the Supabase project.
+   - Update `CLAUDE.md`'s Web App section (still describes Supabase REST as the backend) and
+     check whether it affects the Android app's shared-schema assumptions
+     (`tambalban/supabase_schema.sql` is documented there as the schema's owner — that
+     document either needs to move to describe `0001_init.sql`/D1 as canonical, or both need
+     to stay in sync manually going forward).
 
 **Do not pause or delete the Supabase project before Phase 4 is verified stable** — that
 removes the fallback if the migration has a bug.
