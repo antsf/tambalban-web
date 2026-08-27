@@ -3,6 +3,8 @@ import type { Context } from "hono";
 import { z } from "zod";
 import type { Env } from "./lib/env";
 import * as db from "./lib/supabase";
+import * as d1 from "./lib/d1";
+import type { Workshop } from "./lib/supabase";
 import * as sauth from "./lib/supabase-auth";
 import { getUserToken, userEmailFromToken, userTokenCookie, clearUserTokenCookie } from "./lib/user-auth";
 import { isAdmin, setSessionCookie, clearSessionCookie, validateAdminPassword } from "./lib/admin-auth";
@@ -36,6 +38,24 @@ import { resizeUploadImage } from "./lib/image";
 import { SITE_URL } from "./lib/site";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** D1's booleans are SQLite integers (0/1) — admin views (views/pages.ts) still type against
+ * the Supabase-era `Workshop` (real booleans). Converts at this one boundary rather than
+ * loosening the view types, so views/pages.ts stays untouched by the D1 cutover. */
+function toWorkshop(r: d1.WorkshopRowD1): Workshop {
+  return {
+    ...r,
+    verified: !!r.verified,
+    motorcycle_tyres: !!r.motorcycle_tyres,
+    car_tyres: !!r.car_tyres,
+    truck_tyres: !!r.truck_tyres,
+    tubeless_repair: !!r.tubeless_repair,
+    vulcanizer: !!r.vulcanizer,
+    balancing: !!r.balancing,
+    spooring: !!r.spooring,
+    roadside_service: !!r.roadside_service,
+  };
+}
 
 export const app = new Hono<{ Bindings: Env }>();
 
@@ -104,7 +124,7 @@ app.get("/admin/login", async (c) => {
 app.get("/admin", async (c) => {
   if (!(await isAdmin(c.req.header("Cookie"), c.env.ADMIN_SESSION_SECRET))) return c.redirect("/admin/login");
   try {
-    const rows = await db.fetchUnverifiedSubmissions(c.env);
+    const rows = await d1.fetchUnverifiedD1(c.env);
     return c.html(adminQueuePage(rows));
   } catch {
     return c.html(errorToast("Gagal memuat antrian."), 500);
@@ -116,14 +136,14 @@ app.get("/admin/data", async (c) => {
   const parsed = adminDataQuerySchema.safeParse(c.req.query());
   const q: z.infer<typeof adminDataQuerySchema> = parsed.success ? parsed.data : { limit: 100, offset: 0 };
   try {
-    const rows = await db.fetchAllWorkshops(c.env, {
+    const rows = await d1.fetchAllWorkshopsD1(c.env, {
       search: q.search,
       verified: q.verified === "true" ? true : q.verified === "false" ? false : undefined,
       source: q.source,
       limit: q.limit,
       offset: q.offset,
     });
-    return c.html(adminAllDataPage(rows, q));
+    return c.html(adminAllDataPage(rows.map(toWorkshop), q));
   } catch {
     return c.html(errorToast("Gagal memuat data."), 500);
   }
@@ -134,7 +154,7 @@ app.get("/admin/users", async (c) => {
   const parsed = adminUsersQuerySchema.safeParse(c.req.query());
   const q = parsed.success ? parsed.data : {};
   try {
-    const { users, total } = await db.fetchAuthUsers(c.env, { search: q.search });
+    const { users, total } = await d1.fetchUsersD1(c.env, { search: q.search });
     return c.html(adminUsersPage(users, total, q));
   } catch {
     return c.html(errorToast("Gagal memuat pengguna."), 500);
@@ -146,8 +166,8 @@ app.get("/admin/reviews", async (c) => {
   const parsed = adminReviewsQuerySchema.safeParse(c.req.query());
   const q = parsed.success ? parsed.data : { limit: 200 };
   try {
-    const reviews = await db.fetchAllReviews(c.env, { rating: q.rating, limit: q.limit });
-    const { users } = await db.fetchAuthUsers(c.env);
+    const reviews = await d1.fetchAllReviewsD1(c.env, { rating: q.rating, limit: q.limit });
+    const { users } = await d1.fetchUsersD1(c.env);
     const emails = new Map(users.map((u) => [u.id, u.email ?? ""]));
     return c.html(adminReviewsPage(reviews, emails, q));
   } catch {
@@ -518,7 +538,7 @@ const adminGate = async (c: Context<{ Bindings: Env }>): Promise<boolean> =>
 app.get("/api/admin/submissions", async (c) => {
   if (!(await adminGate(c))) return c.json({ error: "Unauthorized" }, 401);
   try {
-    return c.json(await db.fetchUnverifiedSubmissions(c.env));
+    return c.json(await d1.fetchUnverifiedD1(c.env));
   } catch {
     return c.json({ error: "Gagal memuat" }, 502);
   }
@@ -542,14 +562,14 @@ app.get("/api/admin/workshops", async (c) => {
   const parsed = adminDataQuerySchema.safeParse(c.req.query());
   if (!parsed.success) return c.json({ error: "Parameter tidak valid" }, 400);
   try {
-    const rows = await db.fetchAllWorkshops(c.env, {
+    const rows = await d1.fetchAllWorkshopsD1(c.env, {
       search: parsed.data.search,
       verified: parsed.data.verified === "true" ? true : parsed.data.verified === "false" ? false : undefined,
       source: parsed.data.source,
       limit: parsed.data.limit,
       offset: parsed.data.offset,
     });
-    return c.html(adminDataList(rows));
+    return c.html(adminDataList(rows.map(toWorkshop)));
   } catch {
     return c.json({ error: "Gagal memuat" }, 502);
   }
@@ -575,7 +595,7 @@ app.post("/api/admin/submissions/:id/publish", async (c) => {
   const id = c.req.param("id");
   if (!UUID_RE.test(id)) return c.json({ error: "Invalid ID" }, 400);
   try {
-    await db.publishSubmission(c.env, id);
+    await d1.publishWorkshopD1(c.env, id);
     // Button uses hx-swap="none" — both the row's removal and the toast ride
     // out-of-band, so a failed request below never touches the row at all.
     return c.html(
@@ -606,7 +626,7 @@ app.post("/api/admin/submissions/:id/remove", async (c) => {
   const id = c.req.param("id");
   if (!UUID_RE.test(id)) return c.json({ error: "Invalid ID" }, 400);
   try {
-    await db.removeSubmission(c.env, id);
+    await d1.removeWorkshopD1(c.env, id);
     return c.html(`<div id="wksp-${id}" hx-swap-oob="delete"></div>`);
   } catch {
     return c.html(`<div id="toast" hx-swap-oob="innerHTML">${errorToast("Gagal menghapus.")}</div>`, 502);
@@ -635,7 +655,7 @@ app.post("/api/admin/bulk/publish", async (c) => {
   const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string" && UUID_RE.test(x)) : [];
   if (!ids.length) return c.json({ error: "No IDs" }, 400);
   try {
-    await db.bulkPublish(c.env, ids);
+    await d1.bulkPublishD1(c.env, ids);
     return c.html(successToast(`${ids.length} kiriman diterbitkan.`));
   } catch {
     return c.html(errorToast("Gagal menerbitkan."), 502);
@@ -661,7 +681,7 @@ app.post("/api/admin/bulk/remove", async (c) => {
   const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string" && UUID_RE.test(x)) : [];
   if (!ids.length) return c.json({ error: "No IDs" }, 400);
   try {
-    await db.bulkRemove(c.env, ids);
+    await d1.bulkRemoveD1(c.env, ids);
     return c.html(successToast(`${ids.length} kiriman dihapus.`));
   } catch {
     return c.html(errorToast("Gagal menghapus."), 502);

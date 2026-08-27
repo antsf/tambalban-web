@@ -144,9 +144,24 @@ Not decided yet — revisit before Phase 3.
         (Supabase stays live as fallback per the rule below), so it isn't a hard blocker for
         flipping DB traffic to D1. It IS a hard blocker for Phase 5 (Supabase retirement).
 
-   c. **Web app cutover.** `routes.ts` (cookie+HTML, Supabase-backed) is the main app; nothing
-      here has an equivalent on D1 yet. Two options — decide before starting, don't default
-      silently:
+   c. **Web app cutover.** `routes.ts` (cookie+HTML, Supabase-backed) is the main app.
+      **Admin routes done 2026-08-27** (lowest-risk slice, done first deliberately — see
+      below): `/admin`, `/admin/data`, `/admin/users`, `/admin/reviews` + the `/api/admin/*`
+      JSON endpoints (queue, publish, remove, bulk publish/remove) all now read/write D1 via
+      `lib/d1.ts`, not Supabase. `routes.test.ts` updated to mock `./lib/d1` instead of
+      `./lib/supabase` for these; a `toWorkshop()` adapter in `routes.ts` converts D1's
+      0/1 integer booleans to the real booleans `views/pages.ts` still expects, so the view
+      layer needed zero changes. Two new `d1.ts` functions: `fetchUsersD1` (no
+      `last_sign_in_at` — D1's `users` table has no sign-in tracking, unlike Supabase Auth,
+      always returns null there) and `fetchAllReviewsD1` (LEFT JOIN to `tambal_ban` for the
+      workshop-name embed `fetchAllReviews` used to get from PostgREST). Public map/search,
+      auth (register/login/logout), and submit are still on Supabase — deliberately deferred:
+      those are live user-facing flows (not admin-only), so cutting them over needs its own
+      `npm run dev` smoke-test pass and probably its own review checkpoint, not a
+      continuation of this same pass.
+
+      Two options for the remaining (public/auth/submit) routes — decide before starting,
+      don't default silently:
       - **Merge:** rewrite `routes.ts` handlers to read/write D1 instead of Supabase REST,
         keep the existing cookie-session UX, retire `supabase-auth.ts`. Larger diff, one
         codebase.

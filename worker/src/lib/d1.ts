@@ -419,3 +419,74 @@ export async function bulkRemoveD1(env: Env, ids: string[]): Promise<void> {
     .bind(...ids)
     .run();
 }
+
+export interface AdminUserD1 {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  created_at: string;
+  /** D1's users table has no sign-in tracking (unlike Supabase Auth) — always null. */
+  last_sign_in_at: string | null;
+}
+
+/** Admin: list users, paginated by a hard max (mirrors fetchAuthUsers's {users, total} shape). */
+export async function fetchUsersD1(
+  env: Env,
+  opts: { search?: string; max?: number } = {},
+): Promise<{ users: AdminUserD1[]; total: number }> {
+  const max = opts.max ?? 200;
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  if (opts.search) {
+    conditions.push("(email LIKE ? ESCAPE '\\' OR username LIKE ? ESCAPE '\\' OR full_name LIKE ? ESCAPE '\\')");
+    const escaped = `%${opts.search.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+    params.push(escaped, escaped, escaped);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const countRow = await env.DB.prepare(`SELECT COUNT(*) as total FROM users ${where}`)
+    .bind(...params)
+    .first<{ total: number }>();
+  const { results } = await env.DB.prepare(
+    `SELECT id, email, phone, created_at, NULL as last_sign_in_at FROM users ${where} ORDER BY created_at DESC LIMIT ${max}`,
+  )
+    .bind(...params)
+    .all<AdminUserD1>();
+  return { users: results, total: countRow?.total ?? results.length };
+}
+
+export interface ReviewD1 {
+  id: string;
+  workshop_id: string | null;
+  user_id: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  tambal_ban: { name: string } | null;
+}
+
+/** Admin: list reviews with the workshop name joined in — mirrors fetchAllReviews's embed shape. */
+export async function fetchAllReviewsD1(
+  env: Env,
+  opts: { rating?: number; limit?: number } = {},
+): Promise<ReviewD1[]> {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  if (opts.rating) {
+    conditions.push("reviews.rating = ?");
+    params.push(opts.rating);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limit = opts.limit ?? 200;
+  const { results } = await env.DB.prepare(
+    `SELECT reviews.id, reviews.workshop_id, reviews.user_id, reviews.rating, reviews.comment,
+            reviews.created_at, tambal_ban.name as workshop_name
+     FROM reviews LEFT JOIN tambal_ban ON tambal_ban.id = reviews.workshop_id
+     ${where} ORDER BY reviews.created_at DESC LIMIT ${limit}`,
+  )
+    .bind(...params)
+    .all<{
+      id: string; workshop_id: string | null; user_id: string | null; rating: number;
+      comment: string | null; created_at: string; workshop_name: string | null;
+    }>();
+  return results.map(({ workshop_name, ...r }) => ({ ...r, tambal_ban: workshop_name ? { name: workshop_name } : null }));
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { app } from "./routes";
 import * as db from "./lib/supabase";
+import * as d1 from "./lib/d1";
 import type { Env } from "./lib/env";
 import { setSessionCookie } from "./lib/admin-auth";
 import { resizeUploadImage } from "./lib/image";
@@ -8,16 +9,19 @@ import { resizeUploadImage } from "./lib/image";
 vi.mock("./lib/supabase", () => ({
   fetchVerifiedWorkshops: vi.fn(),
   fetchWorkshopById: vi.fn(),
-  fetchUnverifiedSubmissions: vi.fn(),
-  fetchAllWorkshops: vi.fn(),
   insertSubmission: vi.fn(),
   uploadImage: vi.fn(),
-  publishSubmission: vi.fn(),
-  removeSubmission: vi.fn(),
-  bulkPublish: vi.fn(),
-  bulkRemove: vi.fn(),
-  fetchAuthUsers: vi.fn(),
-  fetchAllReviews: vi.fn(),
+}));
+
+vi.mock("./lib/d1", () => ({
+  fetchUnverifiedD1: vi.fn(),
+  fetchAllWorkshopsD1: vi.fn(),
+  publishWorkshopD1: vi.fn(),
+  removeWorkshopD1: vi.fn(),
+  bulkPublishD1: vi.fn(),
+  bulkRemoveD1: vi.fn(),
+  fetchUsersD1: vi.fn(),
+  fetchAllReviewsD1: vi.fn(),
 }));
 
 vi.mock("./lib/supabase-auth", () => ({
@@ -79,13 +83,13 @@ describe("admin gate (publish/remove state machine)", () => {
     const res = await app.request(`/api/admin/submissions/${UUID}/publish`, { method: "POST" }, env);
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "Unauthorized" });
-    expect(db.publishSubmission).not.toHaveBeenCalled();
+    expect(d1.publishWorkshopD1).not.toHaveBeenCalled();
   });
 
   it("rejects remove without an admin session", async () => {
     const res = await app.request(`/api/admin/submissions/${UUID}/remove`, { method: "POST" }, env);
     expect(res.status).toBe(401);
-    expect(db.removeSubmission).not.toHaveBeenCalled();
+    expect(d1.removeWorkshopD1).not.toHaveBeenCalled();
   });
 
   it("publishes a submission with a valid admin session", async () => {
@@ -96,7 +100,7 @@ describe("admin gate (publish/remove state machine)", () => {
       env,
     );
     expect(res.status).toBe(200);
-    expect(db.publishSubmission).toHaveBeenCalledWith(env, UUID);
+    expect(d1.publishWorkshopD1).toHaveBeenCalledWith(env, UUID);
     expect((await res.text()).toLowerCase()).toContain("diterbitkan");
   });
 
@@ -108,7 +112,7 @@ describe("admin gate (publish/remove state machine)", () => {
       env,
     );
     expect(res.status).toBe(200);
-    expect(db.removeSubmission).toHaveBeenCalledWith(env, UUID);
+    expect(d1.removeWorkshopD1).toHaveBeenCalledWith(env, UUID);
   });
 
   it("rejects publish with a malformed ID without touching the DB", async () => {
@@ -119,7 +123,7 @@ describe("admin gate (publish/remove state machine)", () => {
       env,
     );
     expect(res.status).toBe(400);
-    expect(db.publishSubmission).not.toHaveBeenCalled();
+    expect(d1.publishWorkshopD1).not.toHaveBeenCalled();
   });
 
   it("rejects remove with a malformed ID without touching the DB", async () => {
@@ -130,11 +134,11 @@ describe("admin gate (publish/remove state machine)", () => {
       env,
     );
     expect(res.status).toBe(400);
-    expect(db.removeSubmission).not.toHaveBeenCalled();
+    expect(d1.removeWorkshopD1).not.toHaveBeenCalled();
   });
 
   it("forwards DB failures as a 502 without leaking error text", async () => {
-    vi.mocked(db.publishSubmission).mockRejectedValue(new Error("service_role leaked detail"));
+    vi.mocked(d1.publishWorkshopD1).mockRejectedValue(new Error("service_role leaked detail"));
     const cookie = await adminCookie();
     const res = await app.request(
       `/api/admin/submissions/${UUID}/publish`,
@@ -157,7 +161,7 @@ describe("bulk publish/remove", () => {
       env,
     );
     expect(res.status).toBe(200);
-    expect(db.bulkPublish).toHaveBeenCalledWith(env, [UUID, OTHER_UUID]);
+    expect(d1.bulkPublishD1).toHaveBeenCalledWith(env, [UUID, OTHER_UUID]);
   });
 
   it("drops malformed UUIDs before calling the DB", async () => {
@@ -168,7 +172,7 @@ describe("bulk publish/remove", () => {
       env,
     );
     expect(res.status).toBe(200);
-    expect(db.bulkPublish).toHaveBeenCalledWith(env, [UUID]);
+    expect(d1.bulkPublishD1).toHaveBeenCalledWith(env, [UUID]);
   });
 
   it("rejects an empty ID list without touching the DB", async () => {
@@ -179,7 +183,7 @@ describe("bulk publish/remove", () => {
       env,
     );
     expect(res.status).toBe(400);
-    expect(db.bulkRemove).not.toHaveBeenCalled();
+    expect(d1.bulkRemoveD1).not.toHaveBeenCalled();
   });
 
   it("rejects bulk publish without admin", async () => {
@@ -189,7 +193,7 @@ describe("bulk publish/remove", () => {
       env,
     );
     expect(res.status).toBe(401);
-    expect(db.bulkPublish).not.toHaveBeenCalled();
+    expect(d1.bulkPublishD1).not.toHaveBeenCalled();
   });
 });
 
@@ -199,7 +203,7 @@ describe("public workshop API", () => {
     const res = await app.request("/api/workshops?minLat=-11&maxLat=6&minLng=95&maxLng=141", {}, env);
     expect(res.status).toBe(200);
     expect(db.fetchVerifiedWorkshops).toHaveBeenCalled();
-    expect(db.fetchUnverifiedSubmissions).not.toHaveBeenCalled();
+    expect(d1.fetchUnverifiedD1).not.toHaveBeenCalled();
   });
 
   it("rejects invalid bbox", async () => {
