@@ -27,6 +27,18 @@ vi.mock("./lib/d1", () => ({
   setPasswordHash: vi.fn(),
   deleteSession: vi.fn(),
   insertWorkshopD1: vi.fn(),
+  toWorkshop: vi.fn((r: any) => ({
+    ...r,
+    verified: !!r.verified,
+    motorcycle_tyres: !!r.motorcycle_tyres,
+    car_tyres: !!r.car_tyres,
+    truck_tyres: !!r.truck_tyres,
+    tubeless_repair: !!r.tubeless_repair,
+    vulcanizer: !!r.vulcanizer,
+    balancing: !!r.balancing,
+    spooring: !!r.spooring,
+    roadside_service: !!r.roadside_service,
+  })),
 }));
 
 vi.mock("./lib/r2", () => ({

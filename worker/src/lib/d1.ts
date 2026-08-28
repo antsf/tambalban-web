@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import type { Workshop } from "./supabase";
 
 /**
  * D1 data-access layer — Phase 2 of the Supabase -> D1 migration (see
@@ -170,6 +171,26 @@ export interface WorkshopRowD1 {
   roadside_service: number;
   created_at: string;
   updated_at: string;
+}
+
+/** D1's booleans are SQLite integers (0/1) — both routes.ts's admin views and routes-d1.ts's
+ * v2 JSON API need real booleans (views/pages.ts types against the Supabase-era `Workshop`;
+ * a JSON API returning 0/1 for a boolean field is a real client-facing bug, not a style
+ * choice — kotlinx.serialization/most JSON consumers reject an Int where a Boolean is
+ * declared). Converts at this one shared boundary rather than duplicating it per caller. */
+export function toWorkshop(r: WorkshopRowD1): Workshop {
+  return {
+    ...r,
+    verified: !!r.verified,
+    motorcycle_tyres: !!r.motorcycle_tyres,
+    car_tyres: !!r.car_tyres,
+    truck_tyres: !!r.truck_tyres,
+    tubeless_repair: !!r.tubeless_repair,
+    vulcanizer: !!r.vulcanizer,
+    balancing: !!r.balancing,
+    spooring: !!r.spooring,
+    roadside_service: !!r.roadside_service,
+  };
 }
 
 const WORKSHOP_SELECT_D1 = [

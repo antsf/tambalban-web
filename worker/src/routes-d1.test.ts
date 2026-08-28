@@ -1,9 +1,20 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appD1 } from "./routes-d1";
 import * as d1 from "./lib/d1";
+import * as r2 from "./lib/r2";
+import { resizeUploadImage } from "./lib/image";
 import * as legacyAuth from "./lib/legacy-auth";
 import { setSessionCookie } from "./lib/admin-auth";
 import type { Env } from "./lib/env";
+
+vi.mock("./lib/r2", () => ({
+  uploadWorkshopImage: vi.fn(),
+  uploadAvatarImage: vi.fn(),
+}));
+
+vi.mock("./lib/image", () => ({
+  resizeUploadImage: vi.fn(() => new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer as ArrayBuffer),
+}));
 
 vi.mock("./lib/d1", () => ({
   hashPassword: vi.fn(async (p: string) => `hashed:${p}`),
@@ -27,6 +38,18 @@ vi.mock("./lib/d1", () => ({
   removeWorkshopD1: vi.fn(),
   bulkPublishD1: vi.fn(),
   bulkRemoveD1: vi.fn(),
+  toWorkshop: vi.fn((r: any) => ({
+    ...r,
+    verified: !!r.verified,
+    motorcycle_tyres: !!r.motorcycle_tyres,
+    car_tyres: !!r.car_tyres,
+    truck_tyres: !!r.truck_tyres,
+    tubeless_repair: !!r.tubeless_repair,
+    vulcanizer: !!r.vulcanizer,
+    balancing: !!r.balancing,
+    spooring: !!r.spooring,
+    roadside_service: !!r.roadside_service,
+  })),
 }));
 
 vi.mock("./lib/legacy-auth", () => ({
@@ -351,7 +374,7 @@ describe("POST /api/v2/workshops", () => {
     expect(res.status).toBe(201);
     expect(d1.insertWorkshopD1).toHaveBeenCalledWith(env, UUID, expect.objectContaining({ name: "Tambal Ban Jaya" }));
     const bodyOut = (await res.json()) as any;
-    expect(bodyOut.verified).toBe(0);
+    expect(bodyOut.verified).toBe(false);
   });
 });
 
@@ -514,5 +537,68 @@ describe("admin routes", () => {
     );
     expect(res.status).toBe(401);
     expect(d1.bulkRemoveD1).not.toHaveBeenCalled();
+  });
+});
+
+function uploadForm(): FormData {
+  const form = new FormData();
+  form.append("file", new File([new Uint8Array(8)], "photo.png", { type: "image/png" }));
+  return form;
+}
+
+describe("POST /api/v2/upload/workshop", () => {
+  it("rejects without a bearer token", async () => {
+    const res = await appD1.request("/api/v2/upload/workshop", { method: "POST", body: uploadForm() }, env);
+    expect(res.status).toBe(401);
+    expect(r2.uploadWorkshopImage).not.toHaveBeenCalled();
+  });
+
+  it("resizes to webp and uploads to the workshops bucket", async () => {
+    vi.mocked(d1.getSessionUser).mockResolvedValue(testUser);
+    vi.mocked(r2.uploadWorkshopImage).mockResolvedValue("https://tambalban-web.antsf.workers.dev/images/workshops/x.webp");
+    const res = await appD1.request(
+      "/api/v2/upload/workshop",
+      { method: "POST", headers: { Authorization: "Bearer tok123" }, body: uploadForm() },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ url: "https://tambalban-web.antsf.workers.dev/images/workshops/x.webp" });
+    expect(resizeUploadImage).toHaveBeenCalledTimes(1);
+    expect(r2.uploadAvatarImage).not.toHaveBeenCalled();
+  });
+
+  it("rejects an undecodable image as a 400 client error", async () => {
+    vi.mocked(d1.getSessionUser).mockResolvedValue(testUser);
+    vi.mocked(resizeUploadImage).mockImplementationOnce(() => {
+      throw new Error("bad image");
+    });
+    const res = await appD1.request(
+      "/api/v2/upload/workshop",
+      { method: "POST", headers: { Authorization: "Bearer tok123" }, body: uploadForm() },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(r2.uploadWorkshopImage).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/v2/upload/avatar", () => {
+  it("rejects without a bearer token", async () => {
+    const res = await appD1.request("/api/v2/upload/avatar", { method: "POST", body: uploadForm() }, env);
+    expect(res.status).toBe(401);
+    expect(r2.uploadAvatarImage).not.toHaveBeenCalled();
+  });
+
+  it("resizes to webp and uploads to the avatars bucket, not workshops", async () => {
+    vi.mocked(d1.getSessionUser).mockResolvedValue(testUser);
+    vi.mocked(r2.uploadAvatarImage).mockResolvedValue("https://tambalban-web.antsf.workers.dev/images/avatars/x.webp");
+    const res = await appD1.request(
+      "/api/v2/upload/avatar",
+      { method: "POST", headers: { Authorization: "Bearer tok123" }, body: uploadForm() },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ url: "https://tambalban-web.antsf.workers.dev/images/avatars/x.webp" });
+    expect(r2.uploadWorkshopImage).not.toHaveBeenCalled();
   });
 });

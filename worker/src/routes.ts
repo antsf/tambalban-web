@@ -3,7 +3,6 @@ import type { Context } from "hono";
 import { z } from "zod";
 import type { Env } from "./lib/env";
 import * as d1 from "./lib/d1";
-import type { Workshop } from "./lib/supabase";
 import { verifyAgainstSupabaseAuth } from "./lib/legacy-auth";
 import { uploadWorkshopImage } from "./lib/r2";
 import { getUserToken, userTokenCookie, clearUserTokenCookie } from "./lib/user-auth";
@@ -38,24 +37,6 @@ import { resizeUploadImage } from "./lib/image";
 import { SITE_URL } from "./lib/site";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** D1's booleans are SQLite integers (0/1) — admin views (views/pages.ts) still type against
- * the Supabase-era `Workshop` (real booleans). Converts at this one boundary rather than
- * loosening the view types, so views/pages.ts stays untouched by the D1 cutover. */
-function toWorkshop(r: d1.WorkshopRowD1): Workshop {
-  return {
-    ...r,
-    verified: !!r.verified,
-    motorcycle_tyres: !!r.motorcycle_tyres,
-    car_tyres: !!r.car_tyres,
-    truck_tyres: !!r.truck_tyres,
-    tubeless_repair: !!r.tubeless_repair,
-    vulcanizer: !!r.vulcanizer,
-    balancing: !!r.balancing,
-    spooring: !!r.spooring,
-    roadside_service: !!r.roadside_service,
-  };
-}
 
 export const app = new Hono<{ Bindings: Env }>();
 
@@ -122,7 +103,7 @@ app.get("/workshops/:id", async (c) => {
   if (!UUID_RE.test(id)) return c.html(workshopDetailPage(null, s));
   try {
     const w = await d1.fetchWorkshopByIdD1(c.env, id);
-    return c.html(workshopDetailPage(w ? toWorkshop(w) : null, s));
+    return c.html(workshopDetailPage(w ? d1.toWorkshop(w) : null, s));
   } catch {
     return c.html(workshopDetailPage(null, s), 502);
   }
@@ -174,7 +155,7 @@ app.get("/admin/data", async (c) => {
       limit: q.limit,
       offset: q.offset,
     });
-    return c.html(adminAllDataPage(rows.map(toWorkshop), q));
+    return c.html(adminAllDataPage(rows.map(d1.toWorkshop), q));
   } catch {
     return c.html(errorToast("Gagal memuat data."), 500);
   }
@@ -260,7 +241,7 @@ app.get("/api/workshops", async (c) => {
       bbox: hasBbox ? { minLat: minLat!, maxLat: maxLat!, minLng: minLng!, maxLng: maxLng! } : undefined,
     });
     c.header("Cache-Control", "public, max-age=60, s-maxage=300");
-    return c.json(rows.map(toWorkshop));
+    return c.json(rows.map(d1.toWorkshop));
   } catch (e) {
     return c.json({ error: "Gagal memuat data" }, 502);
   }
@@ -592,7 +573,7 @@ app.get("/api/admin/workshops", async (c) => {
       limit: parsed.data.limit,
       offset: parsed.data.offset,
     });
-    return c.html(adminDataList(rows.map(toWorkshop)));
+    return c.html(adminDataList(rows.map(d1.toWorkshop)));
   } catch {
     return c.json({ error: "Gagal memuat" }, 502);
   }

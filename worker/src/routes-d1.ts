@@ -13,6 +13,8 @@ import {
   adminDataQuerySchema,
 } from "./lib/validation";
 import { rateLimit, clientIp } from "./lib/rate-limit";
+import { resizeUploadImage } from "./lib/image";
+import { uploadWorkshopImage, uploadAvatarImage } from "./lib/r2";
 
 /**
  * Bearer-token JSON API for the Android app — Phase 2+4a of the Supabase -> D1 migration
@@ -114,7 +116,7 @@ appD1.get("/api/v2/workshops", async (c) => {
       search,
       bbox: hasBbox ? { minLat: minLat!, maxLat: maxLat!, minLng: minLng!, maxLng: maxLng! } : undefined,
     });
-    return c.json(rows);
+    return c.json(rows.map(d1.toWorkshop));
   } catch {
     return c.json({ error: "Gagal memuat data" }, 502);
   }
@@ -126,7 +128,7 @@ appD1.get("/api/v2/workshops/:id", async (c) => {
   try {
     const row = await d1.fetchWorkshopByIdD1(c.env, id);
     if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
-    return c.json(row);
+    return c.json(d1.toWorkshop(row));
   } catch {
     return c.json({ error: "Gagal memuat data" }, 502);
   }
@@ -141,6 +143,62 @@ appD1.get("/api/v2/workshops/:id/reviews", async (c) => {
   } catch {
     return c.json({ error: "Gagal memuat data" }, 502);
   }
+});
+
+/** Shared body/validation for the two upload routes below — mirrors routes.ts's POST /api/upload. */
+async function handleImageUpload(
+  c: Context<{ Bindings: Env }>,
+  upload: (env: Env, file: ArrayBuffer, contentType: string, ext: string) => Promise<string>,
+) {
+  const user = await bearerUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const ct = c.req.header("Content-Type") ?? "";
+  if (!ct.includes("multipart/form-data")) return c.json({ error: "Invalid content type" }, 400);
+  const formData = await c.req.formData();
+  const raw = formData.get("file");
+  if (!raw || typeof raw === "string") return c.json({ error: "No file" }, 400);
+  const file = raw as { type: string; size: number; arrayBuffer(): Promise<ArrayBuffer> };
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowed.includes(file.type)) return c.json({ error: "Format tidak didukung. Gunakan JPG, PNG, atau WebP." }, 400);
+  if (file.size > 5 * 1024 * 1024) return c.json({ error: "Ukuran maksimal 5MB." }, 400);
+  try {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let resized: ArrayBuffer;
+    try {
+      resized = resizeUploadImage(buf);
+    } catch {
+      return c.json({ error: "Gambar tidak valid atau rusak. Gunakan JPG, PNG, atau WebP." }, 400);
+    }
+    const url = await upload(c.env, resized, "image/webp", "webp");
+    return c.json({ url });
+  } catch {
+    return c.json({ error: "Gagal mengunggah foto. Coba lagi nanti." }, 500);
+  }
+}
+
+/**
+ * POST /api/v2/upload/workshop
+ *
+ * Bearer-only, rate-limited. Same contract as routes.ts's POST /api/upload (resize to WebP,
+ * store in the `tambalban-workshops` R2 bucket) — the cookie-based route can't be reused
+ * as-is since the Android app has no cookie jar, only a bearer token.
+ */
+appD1.post("/api/v2/upload/workshop", async (c) => {
+  const ip = clientIp(c.req.raw);
+  if (!rateLimit(`v2upl:${ip}`, 10)) return c.json({ error: "Terlalu banyak permintaan" }, 429);
+  return handleImageUpload(c, uploadWorkshopImage);
+});
+
+/**
+ * POST /api/v2/upload/avatar
+ *
+ * Bearer-only, rate-limited. Stores in the `tambalban-avatars` R2 bucket. No cookie-based
+ * equivalent exists yet — the web app doesn't have an avatar-upload UI, only Android does.
+ */
+appD1.post("/api/v2/upload/avatar", async (c) => {
+  const ip = clientIp(c.req.raw);
+  if (!rateLimit(`v2upl:${ip}`, 10)) return c.json({ error: "Terlalu banyak permintaan" }, 429);
+  return handleImageUpload(c, uploadAvatarImage);
 });
 
 appD1.post("/api/v2/workshops", async (c) => {
@@ -160,7 +218,7 @@ appD1.post("/api/v2/workshops", async (c) => {
 
   try {
     const row = await d1.insertWorkshopD1(c.env, user.id, parsed.data);
-    return c.json(row, 201);
+    return c.json(d1.toWorkshop(row), 201);
   } catch {
     return c.json({ error: "Gagal menyimpan kiriman. Coba lagi nanti." }, 502);
   }
@@ -238,7 +296,7 @@ appD1.get("/api/v2/admin/workshops", async (c) => {
       limit: parsed.data.limit,
       offset: parsed.data.offset,
     });
-    return c.json(rows);
+    return c.json(rows.map(d1.toWorkshop));
   } catch {
     return c.json({ error: "Gagal memuat" }, 502);
   }
