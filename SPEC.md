@@ -8,6 +8,14 @@ web app — the target state, plus the contract for anything added to it.
 > deployed on Cloudflare Workers). The old Next.js scaffolding in `src/` has been deleted.
 > Everything below describes the **target state**. The worker in `worker/` implements it; see
 > [`CHANGELOG.md`](./CHANGELOG.md) for what shipped.
+>
+> **BACKEND SUPERSEDED (2026-08-28):** every place below that says "Supabase" for the *web
+> app's own* database/auth/storage is now stale — `worker/` has since migrated to
+> **Cloudflare D1 + R2** (see `specs/d1-migration-plan.md` for the full story and
+> `../CLAUDE.md`'s Web App section for the current architecture). The Android app
+> (`../tambalban`) still uses Supabase and hasn't migrated. Routes, request/response shapes,
+> UI/UX, and the `tambal_ban` column semantics below are still accurate — only the storage
+> layer underneath changed.
 
 ---
 

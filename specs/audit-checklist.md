@@ -15,11 +15,16 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
 ## 1. Keamanan
 - [x] **CSP + security headers** — `worker/src/lib/security.ts`: `X-Content-Type-Options: nosniff`,
       `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
-      `Permissions-Policy`, CSP (allow unpkg untuk Leaflet/HTMX, tile OSM, supabase `img-src`;
-      `connect-src 'self'` karena Nominatim di-proxy via `/api/geocode`).
+      `Permissions-Policy`, CSP (allow unpkg untuk Leaflet/HTMX, tile OSM;
+      `connect-src 'self'` karena Nominatim di-proxy via `/api/geocode`). `img-src` masih
+      whitelist domain Supabase lama (`xwqckmkjciptlbopmxjl.supabase.co`) — sisa 1 gambar
+      yang gagal migrasi ke R2 (2026-08-28, lihat `d1-migration-plan.md`) + fallback selama
+      soak period. Hapus entry ini dari CSP di Phase 5 setelah Supabase retired.
 - [ ] **Turnstile** di `/submit` — belum ada (butuh setup akun Cloudflare, item prioritas #5). Rate-limit submit sudah terpasang (in-memory, per-instance).
-- [x] **Service-role key server-only** — hanya dipakai `worker/src/lib/supabase.ts` dari handler
-      `/api/admin/*` setelah `isAdmin()`. Aman.
+- [x] **Admin routes gated by `isAdmin()` only, no separate credential needed** — D1 (sejak
+      2026-08-28) tidak punya konsep service-role key/RLS-bypass; semua `/api/admin/*` baca
+      D1 langsung setelah `isAdmin()` cookie check. (Sebelum migrasi: service-role key hanya
+      dipakai `worker/src/lib/supabase.ts`, sekarang unused, disimpan sebagai rollback path.)
 - [x] **Honeypot field** di form submit — terpasang (`hp_company` hidden input + penolakan di
       `routes.ts` `/api/submissions`).
 - [x] **Jangan bocorkan `error.message` mentah ke client** — ditutup di `routes.ts` `/api/upload`
@@ -69,8 +74,9 @@ Status: `[ ]` belum dikerjakan, `[x]` sudah/terpasang, `[~]` sebagian, `[n/a]` t
 ## 6. Operasional / Reliability
 - [ ] **Error monitoring** (Sentry / structured log) — belum ada; bukan analytics, tak melanggar
       anti-tracking.
-- [x] **RLS & tidak ada leak foto/status** — `fetchVerifiedWorkshops` selalu `verified=true` +
-      anon key; upload butuh JWT user. Jangan dilonggarkan.
+- [x] **Tidak ada leak status unverified** — `fetchVerifiedWorkshopsD1` selalu filter
+      `verified=1` di SQL-nya sendiri (D1 gak punya RLS, jadi ini yang harus dijaga manual
+      tiap ada query baca baru); upload/submit butuh session D1 valid. Jangan dilonggarkan.
 - [n/a] React Error Boundary — tidak ada React.
 
 ## 7. Produk/UX — sudah dikerjakan, jangan sampai terlewat lagi

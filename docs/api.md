@@ -2,20 +2,27 @@
 
 > **Stability:** Routes may change between releases until v1.0 is tagged. There is no API
 > versioning. All routes are under `/api/`.
-> This API is shared infrastructure with the [`../tambalban`](../../tambalban) Android app —
-> both read/write the same Supabase project (`tambal_ban` table). Coordinate schema changes
-> across both repos before relying on a new field here.
+> This API's data model is shared with the [`../tambalban`](../../tambalban) Android app's
+> `tambal_ban` table, but as of 2026-08-28 they're backed by **separate stores that have
+> diverged**: this API runs on Cloudflare D1+R2, Android still reads/writes Supabase directly.
+> See `../CLAUDE.md`'s divergence callout and `../specs/d1-migration-plan.md` before assuming
+> a row written here is visible to the Android app, or vice versa. Coordinate schema changes
+> across both repos before relying on a new field here regardless.
 
 ## Authentication
 
 Two mechanisms, by design — never mixed, never a third added:
 
-1. **Contributors** (register/login/submit/upload): Supabase Auth. A logged-in user's access
-   token rides in the HttpOnly `tb_access_token` cookie and is sent as `Authorization: Bearer`
-   on writes. Same user store as the Android app — a web account works in the app and vice versa.
+1. **Contributors** (register/login/submit/upload): email+password against Cloudflare D1
+   (`users`/`sessions` tables, PBKDF2-SHA256 hashing). A logged-in user's session token rides
+   in the HttpOnly `tb_access_token` cookie and is sent as `Authorization: Bearer` on the
+   Android bearer API (`/api/v2/*`, not yet consumed by the Android app itself). Historical
+   (Supabase-era) accounts are verified against Supabase Auth on their first post-migration
+   login and lazily backfilled into D1 — a login "just working" for an old account isn't a
+   separate user store, it's this fallback.
 2. **Admins** (`/api/admin/*`): a single shared `ADMIN_PASSWORD`, exchanged via
    `POST /api/admin/login` for an HMAC-signed session cookie (`tb_admin_session`). Not a
-   per-user role — one password for whoever reviews submissions.
+   per-user role — one password for whoever reviews submissions. Unchanged by the D1 migration.
 
 ## Base URL
 
@@ -83,7 +90,7 @@ Response is a **bare array** — there is no `{ data }` envelope.
 | Status | Reason |
 |--------|--------|
 | 400 | `{ "error": "Parameter tidak valid" }` — malformed bbox (e.g. `minLat > maxLat`) |
-| 502 | `{ "error": "Gagal memuat data" }` — Supabase read failed |
+| 502 | `{ "error": "Gagal memuat data" }` — D1 read failed |
 
 **Side effects:** None (read-only).
 
@@ -127,8 +134,10 @@ GET /api/geocode?q=Jalan+Sudirman+Jakarta
 
 ### POST /api/auth/register
 
-Public. Creates a contributor account via Supabase Auth — the **same user store the Android
-app uses**.
+Public. Creates a contributor account in D1's `users` table. No email-confirmation step —
+always logs the new account in immediately (D1 has no email-sending infrastructure; this
+matches what the Android bearer API, `/api/v2/auth/register`, already did before this route
+was migrated).
 
 **Content-Type:** `application/json`
 
@@ -145,11 +154,10 @@ POST /api/auth/register
 ```
 
 **Response:** **HTML fragment** (HTMX `#toast` target), not JSON.
-- On success with immediate session: 200, sets `tb_access_token` cookie, `HX-Redirect: /submit`.
-- On success requiring email confirmation: 200, `HX-Redirect: /login?registered=1`.
-- On failure: 400, HTML error toast (e.g. `"Format email tidak valid"` or the Supabase Auth error text).
+- Success: 200, sets `tb_access_token` cookie (a D1 session token, not a JWT), `HX-Redirect: /submit`.
+- Failure: 400, HTML error toast (e.g. `"Format email tidak valid"` or `"Email sudah terdaftar"`).
 
-**Side effects:** Creates a row in `auth.users` (shared with the Android app).
+**Side effects:** Creates a row in D1's `users` table.
 
 ---
 
@@ -184,7 +192,7 @@ A `GET /api/auth/logout` variant also exists for plain-link logout — same cook
 ### POST /api/upload
 
 Contributor-only (requires `tb_access_token`), rate-limited. Uploads a workshop photo, resizes
-it server-side, and stores it in the shared `workshops` Supabase Storage bucket.
+it server-side, and stores it in the `tambalban-workshops` R2 bucket.
 
 **Rate limit:** 10 requests / 60 seconds / IP.
 
@@ -213,8 +221,12 @@ Content-Type: image/jpeg
 
 **Example Response (200):**
 ```json
-{ "url": "https://xwqckmkjciptlbopmxjl.supabase.co/storage/v1/object/public/workshops/3f9c1a2e.webp" }
+{ "url": "https://tambalban-web.antsf.workers.dev/images/workshops/3f9c1a2e-....webp" }
 ```
+
+Note the returned URL is on this Worker's own domain (`GET /images/:bucket/:key`), not R2's
+`pub-*.r2.dev` domain — that domain is intercepted by an Indonesian carrier's content filter
+and never used for public asset URLs in this app.
 
 **Error Responses:**
 | Status | Reason |
@@ -222,11 +234,11 @@ Content-Type: image/jpeg
 | 400 | `{ "error": "Invalid content type" }` / `{ "error": "No file" }` / `{ "error": "Format tidak didukung. Gunakan JPG, PNG, atau WebP." }` / `{ "error": "Ukuran maksimal 5MB." }` / `{ "error": "Gambar tidak valid atau rusak..." }` |
 | 401 | `{ "error": "Harus masuk" }` — no contributor session |
 | 429 | `{ "error": "Terlalu banyak permintaan" }` |
-| 500 | `{ "error": "Gagal mengunggah foto. Coba lagi nanti." }` — Storage upload failed (message is opaque, not the raw Supabase error) |
+| 500 | `{ "error": "Gagal mengunggah foto. Coba lagi nanti." }` — R2 upload failed (message is opaque, not the raw error) |
 
-**Side effects:** Writes a file to the `workshops` Storage bucket. The returned URL is meant to
-be submitted as `image_url` in a subsequent `POST /api/submissions` call — uploading a photo does
-not by itself attach it to any workshop.
+**Side effects:** Writes a file to the `tambalban-workshops` R2 bucket. The returned URL is
+meant to be submitted as `image_url` in a subsequent `POST /api/submissions` call — uploading
+a photo does not by itself attach it to any workshop.
 
 ---
 
@@ -279,9 +291,10 @@ POST /api/submissions
 | 429 | `"Terlalu banyak kiriman. Coba lagi nanti."` |
 | 502 | `"Gagal menyimpan kiriman. Coba lagi nanti."` — insert failed (message is opaque) |
 
-**Side effects:** Inserts one row into `tambal_ban`. `source` and `verified` are always
-server-set (`'user'`, `false`) — a client cannot override either. `user_id` is stamped by a
-database trigger from the caller's JWT, never sent by the client.
+**Side effects:** Inserts one row into `tambal_ban`. `source`, `verified`, and `user_id` are
+always server-set from the session (`'user'`, `false`, the logged-in user's D1 id) — a client
+cannot override any of them. D1 has no RLS/trigger equivalent, so this is enforced directly
+in the route handler (`lib/d1.ts`'s `insertWorkshopD1`), not the database.
 
 ---
 
@@ -346,8 +359,9 @@ oldest first:
 | 401 | `{ "error": "Unauthorized" }` |
 | 502 | `{ "error": "Gagal memuat" }` |
 
-**Side effects:** None. Uses the service-role key (bypasses RLS) — this is the only role that
-can read `verified=false` rows.
+**Side effects:** None. Reads D1 directly (`source='user' AND verified=0`) — D1 has no RLS, so
+there's no separate "admin-only" credential the way Supabase's service-role key was; the
+`isAdmin()` cookie check above is the entire access boundary.
 
 ---
 
