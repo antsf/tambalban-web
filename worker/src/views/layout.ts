@@ -115,6 +115,9 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
   ${jsonLd.map((j) => `<script type="application/ld+json">${j}</script>`).join("\n")}
   <title>${esc(title)} · TambalBan</title>
   <link rel="stylesheet" href="/tailwind.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
   ${maps ? `<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />` : ""}
   ${cdn("https://unpkg.com/htmx.org@2.0.4")}
   ${cdn("https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js")}
@@ -132,7 +135,7 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
   ${maps ? `<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>` : ""}
   ${extraHead}
 </head>
-<body class="bg-slate-50 text-slate-900 ${bodyClass}">
+<body class="font-barlow bg-slate-50 text-slate-900 ${bodyClass}">
   <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow">
     Langsung ke konten utama
   </a>

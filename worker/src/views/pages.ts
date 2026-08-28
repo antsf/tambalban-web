@@ -182,7 +182,7 @@ export function homePage(session: { email: string | null; admin: boolean } = { e
       ${flash}
       <div class="flex flex-wrap items-center gap-3">
         <div>
-          <h1 class="text-lg font-semibold text-slate-900">Peta bengkel tambal ban</h1>
+          <h1 class="font-disp tracking-tight text-lg font-semibold text-slate-900">Peta bengkel tambal ban</h1>
           <p class="text-sm text-slate-500">Cari bengkel terdekat dan hubungi langsung lewat tombol di popup.</p>
         </div>
         <span id="count" aria-live="polite" class="text-sm text-slate-500">memuat…</span>
@@ -203,7 +203,7 @@ export function workshopDetailPage(
   if (!w) {
     return layout(
       { title: "Bengkel tidak ditemukan", active: "", bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined },
-      `<div class="mx-auto max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center"><h1 class="mb-2 text-xl font-semibold">Bengkel tidak ditemukan</h1><p class="mb-6 text-sm text-slate-500">Data tidak tersedia atau belum terverifikasi.</p><a href="/" class="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Kembali ke peta</a></div>`,
+      `<div class="mx-auto max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center"><h1 class="font-disp tracking-tight mb-2 text-xl font-semibold">Bengkel tidak ditemukan</h1><p class="mb-6 text-sm text-slate-500">Data tidak tersedia atau belum terverifikasi.</p><a href="/" class="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Kembali ke peta</a></div>`,
     );
   }
 
@@ -220,16 +220,20 @@ export function workshopDetailPage(
     ["Instagram", w.instagram],
   ];
 
+  const MONO_LABELS = new Set(["Telepon", "WhatsApp"]);
   const detailRows = rows
     .filter(([, v]) => v)
-    .map(([label, v]) => `<div class="flex justify-between gap-4 border-b border-slate-100 py-2 text-sm"><dt class="text-slate-500">${esc(label)}</dt><dd class="font-medium text-slate-900">${esc(v!)}</dd></div>`)
+    .map(
+      ([label, v]) =>
+        `<div class="flex justify-between gap-4 border-b border-slate-100 py-2 text-sm"><dt class="text-slate-500">${esc(label)}</dt><dd class="font-medium text-slate-900${MONO_LABELS.has(label) ? " font-plexmono" : ""}">${esc(v!)}</dd></div>`,
+    )
     .join("");
 
   const body = `
     <div class="mx-auto max-w-2xl space-y-6">
       <a href="/" class="text-sm font-medium text-emerald-600 hover:underline">&larr; Kembali ke peta</a>
       <div>
-        <h1 class="text-2xl font-semibold text-slate-900">${esc(w.name)}</h1>
+        <h1 class="font-disp tracking-tight text-2xl font-semibold text-slate-900">${esc(w.name)}</h1>
         <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
           <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">Terverifikasi</span>
           ${w.city ? `<span>${esc(w.city)}</span>` : ""}
@@ -283,7 +287,7 @@ export function loginPage(error?: string, session: { email: string | null; admin
   const err = error ? errorToast(error) : "";
   const body = `
     <div class="mx-auto max-w-sm">
-      <h1 class="mb-1 text-xl font-semibold">Masuk</h1>
+      <h1 class="font-disp tracking-tight mb-1 text-xl font-semibold">Masuk</h1>
       <p class="mb-6 text-sm text-slate-500">Akun yang sama berlaku di aplikasi Android maupun web.</p>
       ${err}
       <form hx-post="/api/auth/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
@@ -301,7 +305,7 @@ export function registerPage(error?: string, session: { email: string | null; ad
   const err = error ? errorToast(error) : "";
   const body = `
     <div class="mx-auto max-w-sm">
-      <h1 class="mb-1 text-xl font-semibold">Daftar akun</h1>
+      <h1 class="font-disp tracking-tight mb-1 text-xl font-semibold">Daftar akun</h1>
       <p class="mb-6 text-sm text-slate-500">Dipakai untuk melacak siapa yang menambah data.</p>
       ${err}
       <form hx-post="/api/auth/register" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
@@ -320,14 +324,14 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
     const body = isAdmin
       ? `
       <div class="mx-auto max-w-sm rounded-xl border border-slate-200 bg-white p-8 text-center">
-        <h1 class="mb-2 text-xl font-semibold">Sesi admin terpisah dari akun kontributor</h1>
+        <h1 class="font-disp tracking-tight mb-2 text-xl font-semibold">Sesi admin terpisah dari akun kontributor</h1>
         <p class="mb-6 text-sm text-slate-500">Sesi admin hanya untuk peninjauan. Untuk menambah bengkel, masuk dengan akun kontributor (email & password yang sama di aplikasi Android).</p>
         <a href="/login" class="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Masuk sebagai kontributor</a>
         <p class="mt-3 text-sm text-slate-500">Belum punya akun? <a href="/register" class="font-medium text-emerald-600 hover:underline">Daftar</a></p>
       </div>`
       : `
       <div class="mx-auto max-w-sm rounded-xl border border-slate-200 bg-white p-8 text-center">
-        <h1 class="mb-2 text-xl font-semibold">Masuk dulu untuk menambah</h1>
+        <h1 class="font-disp tracking-tight mb-2 text-xl font-semibold">Masuk dulu untuk menambah</h1>
         <p class="mb-6 text-sm text-slate-500">Setiap tambahan tercatat atas nama akunmu.</p>
         <a href="/login" class="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Masuk</a>
         <p class="mt-3 text-sm text-slate-500">Belum punya akun? <a href="/register" class="font-medium text-emerald-600 hover:underline">Daftar</a></p>
@@ -338,7 +342,7 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
   const services = SERVICE_LABELS.map(([k, label]) => checkbox(k, label, false)).join("");
   const body = `
     <div class="mx-auto max-w-2xl">
-      <h1 class="mb-1 text-xl font-semibold">Tambah bengkel</h1>
+      <h1 class="font-disp tracking-tight mb-1 text-xl font-semibold">Tambah bengkel</h1>
       <p class="mb-6 text-sm text-slate-500">Masuk sebagai <span class="font-medium text-slate-700">${esc(loggedInEmail)}</span>. Kiriman jadi <b>terverifikasi</b> setelah ditinjau admin.</p>
       ${err}
       <div class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
@@ -408,7 +412,7 @@ export function adminLoginPage(error?: string): string {
   const err = error ? errorToast(error) : "";
   const body = `
     <div class="mx-auto max-w-sm">
-      <h1 class="mb-1 text-xl font-semibold">Login admin</h1>
+      <h1 class="font-disp tracking-tight mb-1 text-xl font-semibold">Login admin</h1>
       <p class="mb-6 text-sm text-slate-500">Hanya untuk peninjau data.</p>
       ${err}
       <form hx-post="/api/admin/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
@@ -426,8 +430,8 @@ function submissionCard(row: UnverifiedSubmission): string {
   const meta = [
     row.city ? esc(row.city) : "",
     row.province ? esc(row.province) : "",
-    row.phone ? `Telp: ${esc(row.phone)}` : "",
-    row.whatsapp ? `WA: ${esc(row.whatsapp)}` : "",
+    row.phone ? `Telp: <span class="font-plexmono">${esc(row.phone)}</span>` : "",
+    row.whatsapp ? `WA: <span class="font-plexmono">${esc(row.whatsapp)}</span>` : "",
     row.opening_hours ? `Jam: ${esc(row.opening_hours)}` : "",
   ]
     .filter(Boolean)
@@ -438,10 +442,10 @@ function submissionCard(row: UnverifiedSubmission): string {
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0">
-            <h3 class="font-semibold text-slate-900">${esc(row.name)}</h3>
+            <h3 class="font-disp font-semibold text-slate-900">${esc(row.name)}</h3>
             ${meta ? `<p class="mt-1 text-sm text-slate-500">${meta}</p>` : ""}
             ${row.address ? `<p class="mt-1 text-sm text-slate-500">${esc(row.address)}</p>` : ""}
-            <p class="mt-1 text-xs text-slate-400">Dikirim ${esc(row.created_at)}${row.user_id ? ` · user ${esc(row.user_id.slice(0, 8))}` : ""}</p>
+            <p class="mt-1 text-xs text-slate-400">Dikirim <span class="font-plexmono">${esc(row.created_at)}</span>${row.user_id ? ` · user <span class="font-plexmono">${esc(row.user_id.slice(0, 8))}</span>` : ""}</p>
           </div>
           <div class="flex gap-2">
             ${link}
@@ -494,7 +498,7 @@ export function adminQueuePage(rows: UnverifiedSubmission[]): string {
   const list = rows.length ? rows.map(submissionCard).join("") : adminQueueEmpty();
   const body = `
     <div class="flex items-center justify-between">
-      <h1 class="text-lg font-semibold text-slate-900">Antrian kiriman (${rows.length})</h1>
+      <h1 class="font-disp tracking-tight text-lg font-semibold text-slate-900">Antrian kiriman (${rows.length})</h1>
       <a href="/admin" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
     </div>
     <div id="bulk-bar" class="hidden mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
@@ -535,7 +539,7 @@ function adminDataRow(row: Workshop): string {
   const meta = [
     row.city ? esc(row.city) : "",
     row.province ? esc(row.province) : "",
-    row.phone ? `Telp: ${esc(row.phone)}` : "",
+    row.phone ? `Telp: <span class="font-plexmono">${esc(row.phone)}</span>` : "",
     row.opening_hours ? `Jam: ${esc(row.opening_hours)}` : "",
   ]
     .filter(Boolean)
@@ -544,14 +548,14 @@ function adminDataRow(row: Workshop): string {
     <div class="flex flex-wrap items-start justify-between gap-2">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">
-          <h3 class="font-semibold text-slate-900">${esc(row.name)}</h3>
+          <h3 class="font-disp font-semibold text-slate-900">${esc(row.name)}</h3>
           ${row.source === "osm" ? badge("OSM", "bg-sky-100 text-sky-700") : badge("pengguna", "bg-violet-100 text-violet-700")}
           ${row.verified ? badge("terverifikasi", "bg-emerald-100 text-emerald-700") : badge("belum", "bg-amber-100 text-amber-700")}
         </div>
         ${meta ? `<p class="mt-1 text-sm text-slate-500">${meta}</p>` : ""}
         ${row.address ? `<p class="mt-1 text-sm text-slate-500">${esc(row.address)}</p>` : ""}
         ${svc}
-        <p class="mt-1 text-xs text-slate-400">Dibuat ${esc(row.created_at)}${row.verified_at ? ` · diterbitkan ${esc(row.verified_at)}` : ""}</p>
+        <p class="mt-1 text-xs text-slate-400">Dibuat <span class="font-plexmono">${esc(row.created_at)}</span>${row.verified_at ? ` · diterbitkan <span class="font-plexmono">${esc(row.verified_at)}</span>` : ""}</p>
       </div>
       <div class="flex gap-2">
         ${link}
@@ -603,7 +607,7 @@ export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): strin
   const body = `
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h1 class="text-lg font-semibold text-slate-900">Semua data</h1>
+        <h1 class="font-disp tracking-tight text-lg font-semibold text-slate-900">Semua data</h1>
         <a href="/admin/data" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
       </div>
       <form hx-get="/api/admin/workshops" hx-target="#data-wrap" hx-swap="innerHTML" class="flex flex-wrap items-center gap-2">
@@ -626,14 +630,6 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
 }
 
-/** Google Fonts for /admin/users only — Barlow Condensed (headings), Barlow (body), IBM Plex
- * Mono (ID/UUID/timestamp/phone cells). Page-scoped via layout()'s extraHead so no other
- * page pays for this request. Requires the style-src/font-src CSP entries in lib/security.ts. */
-const ADMIN_USERS_FONT_LINK =
-  `<link rel="preconnect" href="https://fonts.googleapis.com" />` +
-  `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />` +
-  `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />`;
-
 export function adminUsersPage(users: AdminUser[], total: number, query: { search?: string }): string {
   const rows = users.length
     ? users
@@ -651,15 +647,15 @@ export function adminUsersPage(users: AdminUser[], total: number, query: { searc
         .join("")
     : `<tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">Tidak ada pengguna yang cocok.</td></tr>`;
   const body = `
-    <div class="flex flex-col gap-4 font-barlow">
+    <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h1 class="font-disp tracking-tight text-lg font-semibold text-slate-900">Pengguna (${total})</h1>
         <a href="/admin/users" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
       </div>
       <form method="get" action="/admin/users" class="flex flex-wrap items-center gap-2">
         <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari email / telepon…" aria-label="Cari email atau telepon pengguna"
-          class="font-barlow w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-64" />
-        <button class="font-barlow rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Cari</button>
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-64" />
+        <button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Cari</button>
       </form>
       <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table class="w-full text-left">
@@ -676,13 +672,7 @@ export function adminUsersPage(users: AdminUser[], total: number, query: { searc
       </div>
       ${total > users.length ? `<p class="text-xs text-slate-400">Menampilkan ${users.length} dari ${total} pengguna.</p>` : ""}
     </div>`;
-  return layout({
-    title: "Pengguna",
-    active: "users",
-    admin: true,
-    bodyClass: "flex min-h-screen flex-col",
-    extraHead: ADMIN_USERS_FONT_LINK,
-  }, body);
+  return layout({ title: "Pengguna", active: "users", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
 export function adminReviewsPage(
@@ -706,7 +696,7 @@ export function adminReviewsPage(
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-amber-500">${stars}</span>
-          <span class="text-xs text-slate-400">${fmtDate(rv.created_at)}</span>
+          <span class="font-plexmono text-xs text-slate-400">${fmtDate(rv.created_at)}</span>
         </div>
         ${rv.comment ? `<p class="mt-1 text-sm text-slate-700">${esc(rv.comment)}</p>` : '<p class="mt-1 text-sm italic text-slate-400">Tanpa komentar</p>'}
         <p class="mt-2 text-xs text-slate-500">
@@ -722,7 +712,7 @@ export function adminReviewsPage(
   const body = `
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h1 class="text-lg font-semibold text-slate-900">Ulasan (${reviews.length} baris termuat)</h1>
+        <h1 class="font-disp tracking-tight text-lg font-semibold text-slate-900">Ulasan (${reviews.length} baris termuat)</h1>
         <a href="/admin/reviews" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
       </div>
       <form method="get" action="/admin/reviews" class="flex flex-wrap items-center gap-2">
