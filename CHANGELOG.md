@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- **SHARED SCHEMA:** The web app's backend moved from Supabase to Cloudflare D1 (database)
+  and R2 (image storage). Until the Android app migrates too, `tambal_ban` exists as two
+  separate copies: a workshop submitted on the website lands in D1 and is invisible to the
+  Android app; one submitted in the Android app lands in Supabase and is invisible on the
+  website. No action needed from web users — the Android team should know the two front
+  doors' data has diverged until the app switches to the same D1-backed API
+- 127 historical workshops recovered from the original pre-Supabase database (2022–2025) and
+  added to the admin review queue, alongside the ~440 that already carried over from Supabase
+- Color palette now matches the Android app's brand (blue-violet, was slate/emerald) —
+  buttons, links, badges, and status colors are consistent across both front doors
+- Typography: headings now use Barlow Condensed, body text uses Barlow, and IDs/timestamps/
+  phone numbers use IBM Plex Mono, replacing the default system font everywhere
 - Latitude/longitude on the submission form are now visible, editable fields instead of
   hidden ones — you can type exact coordinates directly, not only place a pin
 - Placing a pin by tapping the map now gives instant feedback if the location is outside
@@ -18,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   rewrite to the Hono/HTMX worker stack is complete; the live app lives entirely in `worker/`
 
 ### Added
+- Bearer-token JSON API for the Android app (`/api/v2/*`) — not yet used by the app itself,
+  but submit/review/admin publish-remove all exist and are tested, ready for the app to
+  switch over to once it's off Supabase
 - Social-share card: links to the site now preview with a branded tire image
   (`og-image.png`) when shared on WhatsApp, Facebook, or Telegram, and iOS users
   adding the site to their home screen get a matching app icon
@@ -35,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Workshop pages are now included in `sitemap.xml`
 
 ### Fixed
+- The map on the home page silently failed to load for every visitor: a JavaScript escaping
+  bug in the marker-list code broke the whole inline script, so panning, zooming, and the
+  non-map workshop list never worked. Long-standing, unrelated to the D1/design-system work
+  above — invisible until now because nothing exercised the generated client script directly.
+- Workshop map markers rendered as broken-image "Marker" text boxes instead of pin icons —
+  the Content-Security-Policy blocked the icon images (the same `unpkg.com` gap as an earlier
+  fix below for the Leaflet stylesheet, this time for images)
 - Error messages across the site (wrong password, invalid input, rate limits, failed
   publish/remove, and more) now actually appear — a default in the HTMX library was
   silently discarding every error response instead of showing it
