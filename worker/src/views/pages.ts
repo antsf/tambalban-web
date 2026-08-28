@@ -37,7 +37,7 @@ function popup(w){
 function rowHtml(w){
   const city=esc(w.city||'');
   const tel=w.phone? '<a class="font-medium text-brand-primary hover:underline" href="tel:'+esc(w.phone)+'">Telepon</a>':'';
-  return '<li role="button" tabindex="0" onclick="focusMarker(\''+esc(w.id)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();focusMarker(\''+esc(w.id)+'\')}" class="cursor-pointer rounded-lg border border-brand-divider bg-white px-3 py-2 hover:border-brand-primary hover:shadow-sm">'
+  return '<li role="button" tabindex="0" onclick="focusMarker(\\''+esc(w.id)+'\\')" onkeydown="if(event.key===\\'Enter\\'||event.key===\\' \\'){event.preventDefault();focusMarker(\\''+esc(w.id)+'\\')}" class="cursor-pointer rounded-lg border border-brand-divider bg-white px-3 py-2 hover:border-brand-primary hover:shadow-sm">'
     +'<div class="flex items-center justify-between gap-3">'
     +'<div class="min-w-0">'
     +'<div class="truncate font-medium text-brand-onSurface">'+esc(w.name)+'</div>'
