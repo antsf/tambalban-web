@@ -25,10 +25,10 @@ export const securityHeaders: MiddlewareHandler = async (c, next) => {
       [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' https://unpkg.com",
-        "style-src 'self' 'unsafe-inline' https://unpkg.com",
+        "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com",
         "img-src 'self' https://*.tile.openstreetmap.org https://xwqckmkjciptlbopmxjl.supabase.co data:",
         "connect-src 'self'",
-        "font-src 'self'",
+        "font-src 'self' https://fonts.gstatic.com",
         "frame-src 'none'",
       ].join("; "),
     );

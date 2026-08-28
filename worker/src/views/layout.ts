@@ -27,13 +27,16 @@ interface LayoutOptions {
   canonical?: string;
   /** Raw JSON-LD blocks injected in <head>. */
   jsonLd?: string[];
+  /** Raw HTML injected right before </head> — e.g. a page-scoped font <link>, so pages that
+   * don't need it (most of the site) don't pay the extra request. */
+  extraHead?: string;
 }
 
 const DEFAULT_DESCRIPTION =
   "Peta bengkel tambal ban terverifikasi di Indonesia. Cari tambalan ban terdekat dan kirim lokasi bengkel baru.";
 
 export function layout(opts: LayoutOptions, body: string): string {
-  const { title, active, admin = false, user, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION, canonical, jsonLd = [] } = opts;
+  const { title, active, admin = false, user, bodyClass = "", scripts = [], inlineScripts = [], noContainer = false, maps = false, description = DEFAULT_DESCRIPTION, canonical, jsonLd = [], extraHead = "" } = opts;
   const cdn = (src: string) => `<script src="${src}"></script>`;
   const inline = (code: string) => `<script>${code}</script>`;
   const pageUrl = canonical ?? `${SITE_URL}/`;
@@ -127,6 +130,7 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
     ];
   </script>
   ${maps ? `<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>` : ""}
+  ${extraHead}
 </head>
 <body class="bg-slate-50 text-slate-900 ${bodyClass}">
   <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow">

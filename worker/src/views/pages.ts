@@ -626,6 +626,14 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
 }
 
+/** Google Fonts for /admin/users only — Barlow Condensed (headings), Barlow (body), IBM Plex
+ * Mono (ID/UUID/timestamp/phone cells). Page-scoped via layout()'s extraHead so no other
+ * page pays for this request. Requires the style-src/font-src CSP entries in lib/security.ts. */
+const ADMIN_USERS_FONT_LINK =
+  `<link rel="preconnect" href="https://fonts.googleapis.com" />` +
+  `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />` +
+  `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />`;
+
 export function adminUsersPage(users: AdminUser[], total: number, query: { search?: string }): string {
   const rows = users.length
     ? users
@@ -633,34 +641,34 @@ export function adminUsersPage(users: AdminUser[], total: number, query: { searc
           (u) => `<tr class="border-b border-slate-100 last:border-0">
     <td class="px-3 py-2 align-top">
       <div class="font-medium text-slate-900">${esc(u.email ?? "—")}</div>
-      <div class="text-xs text-slate-400">${esc(u.id)}</div>
+      <div class="font-plexmono text-xs text-slate-400">${esc(u.id)}</div>
     </td>
-    <td class="px-3 py-2 align-top text-sm text-slate-600">${esc(u.phone ?? "—")}</td>
-    <td class="px-3 py-2 align-top text-sm text-slate-600">${fmtDate(u.created_at)}</td>
-    <td class="px-3 py-2 align-top text-sm text-slate-600">${u.last_sign_in_at ? fmtDate(u.last_sign_in_at) : "—"}</td>
+    <td class="px-3 py-2 align-top text-sm text-slate-600 font-plexmono">${esc(u.phone ?? "—")}</td>
+    <td class="px-3 py-2 align-top text-sm text-slate-600 font-plexmono">${fmtDate(u.created_at)}</td>
+    <td class="px-3 py-2 align-top text-sm text-slate-600 font-plexmono">${u.last_sign_in_at ? fmtDate(u.last_sign_in_at) : "—"}</td>
   </tr>`,
         )
         .join("")
     : `<tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">Tidak ada pengguna yang cocok.</td></tr>`;
   const body = `
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-4 font-barlow">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h1 class="text-lg font-semibold text-slate-900">Pengguna (${total})</h1>
+        <h1 class="font-disp tracking-tight text-lg font-semibold text-slate-900">Pengguna (${total})</h1>
         <a href="/admin/users" class="text-sm text-emerald-600 hover:underline">Muat ulang</a>
       </div>
       <form method="get" action="/admin/users" class="flex flex-wrap items-center gap-2">
         <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari email / telepon…" aria-label="Cari email atau telepon pengguna"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-64" />
-        <button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Cari</button>
+          class="font-barlow w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-64" />
+        <button class="font-barlow rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Cari</button>
       </form>
       <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table class="w-full text-left">
           <thead>
-            <tr class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-              <th class="px-3 py-2">Email</th>
-              <th class="px-3 py-2">Telepon</th>
-              <th class="px-3 py-2">Dibuat</th>
-              <th class="px-3 py-2">Masuk terakhir</th>
+            <tr class="border-b border-slate-200 text-xs uppercase tracking-tight text-slate-400">
+              <th class="font-disp px-3 py-2">Email</th>
+              <th class="font-disp px-3 py-2">Telepon</th>
+              <th class="font-disp px-3 py-2">Dibuat</th>
+              <th class="font-disp px-3 py-2">Masuk terakhir</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -668,7 +676,13 @@ export function adminUsersPage(users: AdminUser[], total: number, query: { searc
       </div>
       ${total > users.length ? `<p class="text-xs text-slate-400">Menampilkan ${users.length} dari ${total} pengguna.</p>` : ""}
     </div>`;
-  return layout({ title: "Pengguna", active: "users", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
+  return layout({
+    title: "Pengguna",
+    active: "users",
+    admin: true,
+    bodyClass: "flex min-h-screen flex-col",
+    extraHead: ADMIN_USERS_FONT_LINK,
+  }, body);
 }
 
 export function adminReviewsPage(
