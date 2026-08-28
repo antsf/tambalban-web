@@ -25,7 +25,7 @@ function popup(w){
   if(loc.length) h.push('<div class="text-brand-onSurfaceVariant">'+esc(loc.join(', '))+'</div>');
   if(w.opening_hours) h.push('<div class="mt-1 text-brand-textSecondary">Jam: '+esc(w.opening_hours)+'</div>');
   const svc=Object.keys(svcLabel).filter(k=>w[k]).map(k=>svcLabel[k]);
-  if(svc.length) h.push('<div class="mt-2 flex flex-wrap gap-1">'+svc.map(s=>'<span class="rounded-full bg-brand-tertiaryContainer px-2 py-0.5 text-xs text-brand-onTertiaryContainer">'+esc(s)+'</span>').join('')+'</div>');
+  if(svc.length) h.push('<div class="mt-2 flex flex-wrap gap-1">'+svc.map(s=>'<span class="rounded-full bg-brand-surfaceContainerLow px-2 py-0.5 text-xs font-medium text-brand-onSurfaceVariant">'+esc(s)+'</span>').join('')+'</div>');
   h.push('<div class="mt-2 flex flex-wrap gap-2">');
   if(w.whatsapp) h.push('<a class="rounded-lg bg-brand-primary px-3 py-1.5 text-center font-medium text-white hover:bg-brand-primaryHover" href="https://wa.me/'+esc(w.whatsapp.replace(/[^0-9]/g,''))+'">WhatsApp</a>');
   if(w.phone) h.push('<a class="rounded-lg border border-brand-divider px-3 py-1.5 text-center font-medium text-brand-onSurface hover:bg-brand-surface" href="tel:'+esc(w.phone)+'">Telepon</a>');
@@ -235,7 +235,7 @@ export function workshopDetailPage(
       <div>
         <h1 class="font-disp tracking-tight text-2xl font-semibold text-brand-onSurface">${esc(w.name)}</h1>
         <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-brand-textSecondary">
-          <span class="rounded-full bg-brand-tertiaryContainer px-2 py-0.5 text-xs text-brand-onTertiaryContainer">Terverifikasi</span>
+          ${badge("Terverifikasi", "bg-brand-tertiaryContainer text-brand-onTertiaryContainer")}
           ${w.city ? `<span>${esc(w.city)}</span>` : ""}
           ${w.source === "osm" ? `<span class="text-xs text-brand-textSecondary">(OpenStreetMap)</span>` : ""}
         </p>
@@ -245,7 +245,7 @@ export function workshopDetailPage(
 
       <dl class="rounded-xl border border-brand-divider bg-white px-5 py-2">
         ${detailRows}
-        ${svc.length ? `<div class="flex justify-between gap-3 border-b border-brand-divider py-2 text-sm"><dt class="text-brand-textSecondary">Layanan</dt><dd class="flex flex-wrap justify-end gap-1.5">${svc.map((s) => `<span class="rounded-full bg-brand-surfaceContainerLow px-2 py-0.5 text-xs text-brand-onSurface">${esc(s)}</span>`).join("")}</dd></div>` : ""}
+        ${svc.length ? `<div class="flex justify-between gap-3 border-b border-brand-divider py-2 text-sm"><dt class="text-brand-textSecondary">Layanan</dt><dd class="flex flex-wrap justify-end gap-1.5">${svc.map((s) => badge(s, "bg-brand-surfaceContainerLow text-brand-onSurfaceVariant")).join("")}</dd></div>` : ""}
       </dl>
 
       <div class="flex flex-wrap gap-3">
@@ -348,7 +348,7 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
       <div class="space-y-4 rounded-xl border border-brand-divider bg-white p-6">
         <div>
           <label class="mb-1 block text-sm font-medium text-brand-onSurface">1. Titik lokasi di peta</label>
-          <div id="pick" role="region" aria-label="Peta pemilih lokasi" class="h-64 w-full overflow-hidden rounded-lg border border-brand-divider bg-brand-surfaceContainerLow"></div>
+          <div id="pick" role="region" aria-label="Peta pemilih lokasi" class="h-64 w-full overflow-hidden rounded-xl border border-brand-divider bg-brand-surfaceContainerLow"></div>
           <p id="pick-note" aria-live="polite" class="mt-1 text-xs text-brand-textSecondary">Klik peta untuk menandai lokasi, cari alamat, atau pakai lokasi Anda.</p>
           <button type="button" onclick="useMyLocation()" class="mt-2 rounded-lg border border-brand-divider px-3 py-2 text-sm font-medium text-brand-onSurface hover:bg-brand-surface">
             Pakai lokasi saya
@@ -445,7 +445,7 @@ function submissionCard(row: UnverifiedSubmission): string {
             <h3 class="font-disp font-semibold text-brand-onSurface">${esc(row.name)}</h3>
             ${meta ? `<p class="mt-1 text-sm text-brand-textSecondary">${meta}</p>` : ""}
             ${row.address ? `<p class="mt-1 text-sm text-brand-textSecondary">${esc(row.address)}</p>` : ""}
-            <p class="mt-1 text-xs text-brand-textSecondary">Dikirim <span class="font-plexmono">${esc(row.created_at)}</span>${row.user_id ? ` · user <span class="font-plexmono">${esc(row.user_id.slice(0, 8))}</span>` : ""}</p>
+            <p class="mt-1 text-xs text-brand-textSecondary">Dikirim <span class="font-plexmono">${fmtDate(row.created_at)}</span>${row.user_id ? ` · user <span class="font-plexmono">${esc(row.user_id.slice(0, 8))}</span>` : ""}</p>
           </div>
           <div class="flex gap-2">
             ${link}
@@ -501,7 +501,7 @@ export function adminQueuePage(rows: UnverifiedSubmission[]): string {
       <h1 class="font-disp tracking-tight text-lg font-semibold text-brand-onSurface">Antrian kiriman (${rows.length})</h1>
       <a href="/admin" class="text-sm text-brand-primary hover:underline">Muat ulang</a>
     </div>
-    <div id="bulk-bar" class="hidden mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-brand-tertiaryContainer bg-brand-tertiaryContainer px-4 py-3">
+    <div id="bulk-bar" class="hidden mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-brand-tertiaryContainer bg-brand-tertiaryContainer px-4 py-3">
       <span id="bulk-count" class="text-sm font-medium text-brand-onTertiaryContainer"></span>
       <button onclick="bulkPublish()" class="rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-primaryHover">Terbitkan terpilih</button>
       <button onclick="bulkRemove()" class="rounded-lg border border-brand-errorContainer px-3 py-1.5 text-xs font-medium text-brand-error hover:bg-brand-errorContainer">Hapus terpilih</button>
@@ -555,7 +555,7 @@ function adminDataRow(row: Workshop): string {
         ${meta ? `<p class="mt-1 text-sm text-brand-textSecondary">${meta}</p>` : ""}
         ${row.address ? `<p class="mt-1 text-sm text-brand-textSecondary">${esc(row.address)}</p>` : ""}
         ${svc}
-        <p class="mt-1 text-xs text-brand-textSecondary">Dibuat <span class="font-plexmono">${esc(row.created_at)}</span>${row.verified_at ? ` · diterbitkan <span class="font-plexmono">${esc(row.verified_at)}</span>` : ""}</p>
+        <p class="mt-1 text-xs text-brand-textSecondary">Dibuat <span class="font-plexmono">${fmtDate(row.created_at)}</span>${row.verified_at ? ` · diterbitkan <span class="font-plexmono">${fmtDate(row.verified_at)}</span>` : ""}</p>
       </div>
       <div class="flex gap-2">
         ${link}
@@ -619,7 +619,7 @@ export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): strin
       </form>
       <div id="data-wrap">
         <ul id="data-list" class="space-y-3">${adminDataList(rows)}</ul>
-        ${hasMore ? `<button id="load-more" onclick="loadMore()" class="mt-4 w-full rounded-lg border border-brand-divider bg-white px-4 py-2.5 text-sm font-medium text-brand-onSurfaceVariant hover:bg-brand-surface">Muat lebih banyak</button>` : ""}
+        ${hasMore ? `<button id="load-more" onclick="loadMore()" class="mt-4 w-full rounded-lg border border-brand-divider px-4 py-2 text-sm font-medium text-brand-onSurface hover:bg-brand-surface">Muat lebih banyak</button>` : ""}
       </div>
       <p class="text-xs text-brand-textSecondary">Terbitkan menandai verified=true; Hapus menghapus baris dari database.</p>
     </div>`;
@@ -660,7 +660,7 @@ export function adminUsersPage(users: AdminUser[], total: number, query: { searc
       <div class="overflow-x-auto rounded-xl border border-brand-divider bg-white">
         <table class="w-full text-left">
           <thead>
-            <tr class="border-b border-brand-divider text-xs uppercase tracking-tight text-brand-textSecondary">
+            <tr class="border-b border-brand-divider text-xs uppercase tracking-wide text-brand-textSecondary">
               <th class="font-disp px-3 py-2">Email</th>
               <th class="font-disp px-3 py-2">Telepon</th>
               <th class="font-disp px-3 py-2">Dibuat</th>
@@ -717,7 +717,7 @@ export function adminReviewsPage(
       </div>
       <form method="get" action="/admin/reviews" class="flex flex-wrap items-center gap-2">
         <select name="rating" aria-label="Filter rating" onchange="this.form.submit()"
-          class="rounded-lg border border-brand-divider px-2 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer">
+          class="rounded-lg border border-brand-divider px-2 py-1.5 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer">
           <option value="">Semua rating</option>
           ${ratingOptions}
         </select>
