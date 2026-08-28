@@ -43,42 +43,42 @@ export function layout(opts: LayoutOptions, body: string): string {
   const pageTitle = `${title} · TambalBan`;
 
   const navLink = (href: string, label: string, key: string, extraClass = "") =>
-    `<a href="${href}" class="rounded-lg px-3 py-1.5 ${active === key ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-100"} ${extraClass}">${label}</a>`;
+    `<a href="${href}" class="rounded-lg px-3 py-1.5 ${active === key ? "bg-brand-primaryContainer text-brand-onPrimaryContainer" : "hover:bg-brand-surfaceContainerLow"} ${extraClass}">${label}</a>`;
 
   const publicLinks = `${navLink("/", "Peta", "home")}${navLink("/submit", "Tambah", "submit")}`;
 
   let authLinks: string;
   if (admin) {
     authLinks =
-      `<span class="hidden sm:inline sm:w-px sm:self-stretch sm:bg-slate-200"></span>` +
+      `<span class="hidden sm:inline sm:w-px sm:self-stretch sm:bg-brand-divider"></span>` +
       navLink("/admin", "Antrian", "admin") +
       navLink("/admin/data", "Data", "data") +
       navLink("/admin/users", "Pengguna", "users") +
       navLink("/admin/reviews", "Ulasan", "reviews") +
-      `<a href="/api/admin/logout" class="rounded-lg px-3 py-1.5 text-red-600 hover:bg-red-50">Keluar</a>`;
+      `<a href="/api/admin/logout" class="rounded-lg px-3 py-1.5 text-brand-error hover:bg-brand-errorContainer">Keluar</a>`;
   } else if (user) {
-    authLinks = `<a href="/api/auth/logout" class="rounded-lg px-3 py-1.5 text-red-600 hover:bg-red-50">Keluar</a>`;
+    authLinks = `<a href="/api/auth/logout" class="rounded-lg px-3 py-1.5 text-brand-error hover:bg-brand-errorContainer">Keluar</a>`;
   } else {
     authLinks = navLink("/login", "Masuk", "login");
   }
 
   const header = `
-    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white">
+    <header class="sticky top-0 z-40 border-b border-brand-divider bg-white">
       <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <a href="/" class="flex items-center gap-2 font-semibold text-slate-900">
-          <span class="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 text-white">🛞</span>
+        <a href="/" class="flex items-center gap-2 font-semibold text-brand-onSurface">
+          <span class="grid h-8 w-8 place-items-center rounded-lg bg-brand-primary text-white">🛞</span>
           TambalBan
         </a>
-        <nav id="nav-desktop" class="hidden items-center gap-1 text-sm font-medium text-slate-600 sm:flex">
+        <nav id="nav-desktop" class="hidden items-center gap-1 text-sm font-medium text-brand-onSurfaceVariant sm:flex">
           ${publicLinks}${authLinks}
         </nav>
         <button id="nav-toggle" type="button" onclick="document.getElementById('nav-mobile').classList.toggle('hidden')" aria-label="Buka menu navigasi"
-          class="sm:hidden rounded-lg p-1.5 text-slate-600 hover:bg-slate-100">
+          class="sm:hidden rounded-lg p-1.5 text-brand-onSurfaceVariant hover:bg-brand-surfaceContainerLow">
           <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
       </div>
-      <nav id="nav-mobile" class="hidden border-t border-slate-200 bg-white px-4 py-2 sm:hidden">
-        <div class="flex flex-col gap-1 text-sm font-medium text-slate-600">
+      <nav id="nav-mobile" class="hidden border-t border-brand-divider bg-white px-4 py-2 sm:hidden">
+        <div class="flex flex-col gap-1 text-sm font-medium text-brand-onSurfaceVariant">
           ${publicLinks}${authLinks}
         </div>
       </nav>
@@ -86,7 +86,7 @@ export function layout(opts: LayoutOptions, body: string): string {
 
 const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4 py-6">${body}</main>`;
   const footer = `
-    <footer class="mt-12 border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+    <footer class="mt-12 border-t border-brand-divider py-6 text-center text-xs text-brand-textSecondary">
       Data: OpenStreetMap © kontributor (ODbL) & pengguna. Selalu verifikasi sebelum percaya.
     </footer>`;
 
@@ -98,7 +98,7 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
   <meta name="description" content="${esc(description)}" />
   ${admin ? `<meta name="robots" content="noindex" />` : ""}
   ${canonical ? `<link rel="canonical" href="${esc(canonical)}" />` : ""}
-  <meta name="theme-color" content="#059669" />
+  <meta name="theme-color" content="#8A2BE2" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
@@ -135,8 +135,8 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
   ${maps ? `<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>` : ""}
   ${extraHead}
 </head>
-<body class="font-barlow bg-slate-50 text-slate-900 ${bodyClass}">
-  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow">
+<body class="font-barlow bg-brand-surface text-brand-onSurface ${bodyClass}">
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-brand-onSurface focus:shadow">
     Langsung ke konten utama
   </a>
   ${header}
@@ -150,11 +150,11 @@ const main = noContainer ? body : `<main id="main" class="mx-auto max-w-6xl px-4
 }
 
 export function errorToast(message: string): string {
-  return `<div role="alert" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">${esc(message)}</div>`;
+  return `<div role="alert" class="rounded-lg border border-brand-errorContainer bg-brand-errorContainer px-4 py-3 text-sm text-brand-error">${esc(message)}</div>`;
 }
 
 export function successToast(message: string): string {
-  return `<div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">${esc(message)}</div>`;
+  return `<div class="rounded-lg border border-brand-tertiaryContainer bg-brand-tertiaryContainer px-4 py-3 text-sm text-brand-onTertiaryContainer">${esc(message)}</div>`;
 }
 
 export function field(
@@ -165,12 +165,12 @@ export function field(
 ): string {
   const { type = "text", placeholder = "", required = false, hint, autocomplete } = opts;
   return `<div>
-    <label for="${id}" class="mb-1 block text-sm font-medium text-slate-700">${esc(label)}</label>
+    <label for="${id}" class="mb-1 block text-sm font-medium text-brand-onSurface">${esc(label)}</label>
     <input id="${id}" name="${id}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}"
       ${required ? "required" : ""}
       ${autocomplete ? `autocomplete="${autocomplete}"` : ""}
-      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
-    ${hint ? `<p class="mt-1 text-xs text-slate-500">${esc(hint)}</p>` : ""}
+      class="w-full rounded-lg border border-brand-divider px-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer" />
+    ${hint ? `<p class="mt-1 text-xs text-brand-textSecondary">${esc(hint)}</p>` : ""}
   </div>`;
 }
 
@@ -179,9 +179,9 @@ export function checkbox(
   label: string,
   checked: boolean,
 ): string {
-  return `<label class="flex items-center gap-2 text-sm text-slate-700">
+  return `<label class="flex items-center gap-2 text-sm text-brand-onSurface">
     <input id="${id}" name="${id}" type="checkbox" value="true" ${checked ? "checked" : ""}
-      class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-100" />
+      class="h-4 w-4 rounded border-brand-divider text-brand-primary focus:ring-brand-primaryContainer" />
     ${esc(label)}
   </label>`;
 }

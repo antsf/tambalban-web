@@ -4,8 +4,8 @@
   "description": "Peta bengkel tambal ban terverifikasi di Indonesia.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#059669",
+  "background_color": "#F8F9FA",
+  "theme_color": "#8A2BE2",
   "icons": [
     {
       "src": "/icon.svg",
