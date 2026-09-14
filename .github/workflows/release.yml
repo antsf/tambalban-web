@@ -1,0 +1,97 @@
+name: Release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npm run check
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Verify tag matches package.json version
+        run: |
+          MANIFEST_VERSION="v$(node -p "require('./package.json').version")"
+          TAG_VERSION="${GITHUB_REF_NAME}"
+          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag $TAG_VERSION does not match worker/package.json version $MANIFEST_VERSION"
+            exit 1
+          fi
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract CHANGELOG section for this tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="## [$VERSION]" '
+            $0 ~ "^## \\[" { if (found) exit; if (index($0, ver) == 1) { found=1; next } }
+            found { print }
+          ' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "No CHANGELOG section found for $VERSION; using tag name as fallback." > release_notes.md
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: tambalban-web ${{ github.ref_name }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # This repo is a Cloudflare Worker, not a package/binary artifact — the actual
+  # production deploy already happens on every push to `main` via ci.yml's `deploy`
+  # job (npx wrangler deploy). Re-deploying here on tag push would duplicate that
+  # path and risk deploying an out-of-sync commit if the tag doesn't point at main's
+  # HEAD. Left commented out until there's an explicit reason to deploy specifically
+  # from tags instead of from `main` pushes, plus user go-ahead.
+  # deploy:
+  #   needs: release
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       working-directory: worker
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         cache: npm
+  #         cache-dependency-path: worker/package-lock.json
+  #     - run: npm install
+  #     - run: npm run build:css
+  #     - run: npx wrangler deploy
+  #       env:
+  #         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  #         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

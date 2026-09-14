@@ -8,6 +8,9 @@ on:
 
 jobs:
   check:
+    concurrency:
+      group: ${{ github.workflow }}-check-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,8 +31,14 @@ jobs:
       - name: Typecheck
         run: npm run check
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests with coverage
+        run: npx vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text
+
+      - name: Enforce minimum coverage
+        uses: VeryGoodOpenSource/very_good_coverage@v3
+        with:
+          path: worker/coverage/lcov.info
+          min_coverage: 55
 
       - name: Build CSS
         run: npm run build:css
