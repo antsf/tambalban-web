@@ -1,0 +1,628 @@
+[
+  {
+    "name": "mobile:/:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "mobile:/",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Cari tambal ban.",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      ]
+    }
+  },
+  {
+    "name": "mobile:/login:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "mobile:/login",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Masuk",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "mobile:/register:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "mobile:/register",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Daftar akun",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "mobile:/submit:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "mobile:/submit",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Masuk dulu untuk menambah",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "mobile:/admin/login:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "mobile:/admin/login",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Login admin",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "mobile:drawer keyboard + history restore",
+    "status": "pass",
+    "result": {
+      "swaps": 9,
+      "restores": 3,
+      "errors": []
+    }
+  },
+  {
+    "name": "mobile:reduced motion",
+    "status": "pass",
+    "result": {
+      "matches": true,
+      "scroll": "auto",
+      "transition": "1e-05s"
+    }
+  },
+  {
+    "name": "mobile:console/assets",
+    "status": "pass",
+    "errors": [],
+    "assetFailures": []
+  },
+  {
+    "name": "tablet:/:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "tablet:/",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Cari tambal ban.",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      ]
+    }
+  },
+  {
+    "name": "tablet:/login:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "tablet:/login",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Masuk",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "tablet:/register:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "tablet:/register",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Daftar akun",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "tablet:/submit:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "tablet:/submit",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Masuk dulu untuk menambah",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "tablet:/admin/login:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "tablet:/admin/login",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Login admin",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 44
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "tablet:drawer keyboard + history restore",
+    "status": "pass",
+    "result": {
+      "swaps": 9,
+      "restores": 3,
+      "errors": []
+    }
+  },
+  {
+    "name": "tablet:reduced motion",
+    "status": "pass",
+    "result": {
+      "matches": true,
+      "scroll": "auto",
+      "transition": "1e-05s"
+    }
+  },
+  {
+    "name": "tablet:console/assets",
+    "status": "pass",
+    "errors": [],
+    "assetFailures": []
+  },
+  {
+    "name": "desktop:/:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "desktop:/",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Cari tambal ban.",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      ]
+    }
+  },
+  {
+    "name": "desktop:/login:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "desktop:/login",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Masuk",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "desktop:/register:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "desktop:/register",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Daftar akun",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "desktop:/submit:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "desktop:/submit",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Masuk dulu untuk menambah",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "desktop:/admin/login:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "desktop:/admin/login",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Login admin",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "desktop:reduced motion",
+    "status": "pass",
+    "result": {
+      "matches": true,
+      "scroll": "auto",
+      "transition": "1e-05s"
+    }
+  },
+  {
+    "name": "desktop:console/assets",
+    "status": "pass",
+    "errors": [],
+    "assetFailures": []
+  },
+  {
+    "name": "wide:/:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "wide:/",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Cari tambal ban.",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      ]
+    }
+  },
+  {
+    "name": "wide:/login:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "wide:/login",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Masuk",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "wide:/register:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "wide:/register",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Daftar akun",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "wide:/submit:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "wide:/submit",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Masuk dulu untuk menambah",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "wide:/admin/login:a11y",
+    "status": "pass"
+  },
+  {
+    "name": "wide:/admin/login",
+    "status": "pass",
+    "result": {
+      "overflow": false,
+      "primary": "#047857",
+      "heading": "Login admin",
+      "button": {
+        "background": "rgb(248, 249, 250)",
+        "height": 0
+      },
+      "assets": [
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.cdn.min.css",
+        "http://127.0.0.1:8787/tailwind.css",
+        "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        "https://unpkg.com/htmx.org@2.0.4",
+        "https://unpkg.com/htmx.org@2.0.4/dist/ext/json-enc.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/basecoat.min.js",
+        "http://127.0.0.1:8787/vendor/basecoat/1.0.2/drawer.min.js",
+        "http://127.0.0.1:8787/ui.js"
+      ]
+    }
+  },
+  {
+    "name": "wide:reduced motion",
+    "status": "pass",
+    "result": {
+      "matches": true,
+      "scroll": "auto",
+      "transition": "1e-05s"
+    }
+  },
+  {
+    "name": "wide:console/assets",
+    "status": "pass",
+    "errors": [],
+    "assetFailures": []
+  }
+]

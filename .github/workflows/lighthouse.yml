@@ -21,9 +21,17 @@ jobs:
         with:
           node-version: 20
 
-      - name: Build CSS
+      - name: Install locked dependencies
         working-directory: worker
-        run: npm install && npm run build:css
+        run: npm ci
+
+      - name: Build CSS and UI assets
+        working-directory: worker
+        run: npm run build
+
+      - name: Initialize disposable local D1
+        working-directory: worker
+        run: npx wrangler d1 migrations apply DB --local
 
       - name: Run Lighthouse
         uses: treosh/lighthouse-ci-action@v12

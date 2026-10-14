@@ -26,13 +26,16 @@ jobs:
           cache-dependency-path: worker/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Typecheck
         run: npm run check
 
       - name: Unit tests with coverage
-        run: npx vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text
+        run: npm run test:coverage
+
+      - name: CI and release regression tests
+        run: npm run test:ci
 
       - name: Enforce minimum coverage
         uses: VeryGoodOpenSource/very_good_coverage@v3
@@ -40,8 +43,8 @@ jobs:
           path: worker/coverage/lcov.info
           min_coverage: 55
 
-      - name: Build CSS
-        run: npm run build:css
+      - name: Build CSS and UI assets
+        run: npm run build
 
       - name: Verify CSS tracked
         run: git diff --exit-code -- public/tailwind.css || (echo "public/tailwind.css is out of sync — run npm run build:css and commit it" && exit 1)
@@ -64,10 +67,10 @@ jobs:
           cache-dependency-path: worker/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build CSS
-        run: npm run build:css
+      - name: Build CSS and UI assets
+        run: npm run build
 
       - name: Deploy to Cloudflare Workers
         run: npx wrangler deploy

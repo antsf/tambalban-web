@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-14
+
+### Added
+- Basecoat UI1.0.2 self-hosted components, reusable escaped Hono renderers, and a
+  responsive map-first discovery surface with linked results, contact actions,
+  location controls, keyboard-accessible drawer and reduced-motion behavior.
+- Reproducible V8coverage55%gate, exact substantive release-note validation,
+  official asset manifests, design tokens and before/after browser evidence.
+
+### Fixed
+- Private HTMX history cache boundaries survive Back/Forward restoration;
+  contributor drafts stay in live-page memory and sensitive inputs are not cached.
+- Manual coordinate entry is no longer rewritten while typing; uploads remain
+  usable with manual coordinates even when Leaflet cannot load.
+- Admin filter replacement rejects stale responses, and pagination follows the
+  committed query/page limit without overlapping rows.
+- Lighthouse builds the real UI assets with locked dependencies and a disposable
+  local D1 database before browser collection.
+
+### Verification
+- 146 application tests,64.02%line coverage,14CI/release regression checks,
+  84localE2E checks and50+7+5real Edge checks pass. Focused independent review passed
+  all six acceptance IDs. Logo/icon identity, backend contracts and Android unchanged.
+
 ### Changed
 - **SHARED SCHEMA:** The web app's backend moved from Supabase to Cloudflare D1 (database)
   and R2 (image storage). Until the Android app migrates too, `tambal_ban` exists as two
@@ -16,8 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   doors' data has diverged until the app switches to the same D1-backed API
 - 127 historical workshops recovered from the original pre-Supabase database (2022–2025) and
   added to the admin review queue, alongside the ~440 that already carried over from Supabase
-- Color palette now matches the Android app's brand (blue-violet, was slate/emerald) —
-  buttons, links, badges, and status colors are consistent across both front doors
+- Existing blue-violet logo/icon identity is retained; web actions, focus and
+  selection use the approved emerald accent with neutral surfaces
 - Typography: headings now use Barlow Condensed, body text uses Barlow, and IDs/timestamps/
   phone numbers use IBM Plex Mono, replacing the default system font everywhere
 - Latitude/longitude on the submission form are now visible, editable fields instead of

@@ -1,0 +1,22 @@
+{
+  "package": "basecoat-css",
+  "version": "1.0.2",
+  "files": {
+    "basecoat.cdn.min.css": {
+      "bytes": 218225,
+      "sha256": "8123677adb9bba43be3298e1543bcc5fc763e8cda3d32dc74c806046a3537ca0"
+    },
+    "basecoat.min.js": {
+      "bytes": 2606,
+      "sha256": "93fa012baa09fa49a06d411da3ced2176a121e45ae977955ecf82c5bd3eb6a50"
+    },
+    "drawer.min.js": {
+      "bytes": 1300,
+      "sha256": "3f24a4eef48254fb257f4e65a9041e28d9a70c741bcae0baf751712b60f5d447"
+    },
+    "LICENSE.md": {
+      "bytes": 1068,
+      "sha256": "160a6cea26ff1931297957499ab739e94c4bc79ecea18b490c9f533fa76ace78"
+    }
+  }
+}

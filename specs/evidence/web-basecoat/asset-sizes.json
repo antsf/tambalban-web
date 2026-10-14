@@ -1,0 +1,22 @@
+{
+  "worker/public/tailwind.css": {
+    "bytes": 23053,
+    "gzip_bytes": 5963
+  },
+  "worker/public/vendor/basecoat/1.0.2/basecoat.cdn.min.css": {
+    "bytes": 218225,
+    "gzip_bytes": 21908
+  },
+  "worker/public/vendor/basecoat/1.0.2/basecoat.min.js": {
+    "bytes": 2606,
+    "gzip_bytes": 1092
+  },
+  "worker/public/vendor/basecoat/1.0.2/drawer.min.js": {
+    "bytes": 1300,
+    "gzip_bytes": 617
+  },
+  "worker/public/ui.js": {
+    "bytes": 31320,
+    "gzip_bytes": 9114
+  }
+}

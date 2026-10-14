@@ -25,13 +25,19 @@ jobs:
           cache-dependency-path: worker/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Typecheck
         run: npm run check
 
+      - name: Build CSS and UI assets
+        run: npm run build
+
       - name: Unit tests
         run: npm test
+
+      - name: CI and release regression tests
+        run: npm run test:ci
 
       - name: Verify tag matches package.json version
         run: |
@@ -42,6 +48,9 @@ jobs:
             exit 1
           fi
 
+      - name: Validate exact CHANGELOG section
+        run: node ../scripts/release-notes.mjs
+
   release:
     needs: verify
     runs-on: ubuntu-latest
@@ -51,15 +60,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Extract CHANGELOG section for this tag
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          awk -v ver="## [$VERSION]" '
-            $0 ~ "^## \\[" { if (found) exit; if (index($0, ver) == 1) { found=1; next } }
-            found { print }
-          ' CHANGELOG.md > release_notes.md
-          if [ ! -s release_notes.md ]; then
-            echo "No CHANGELOG section found for $VERSION; using tag name as fallback." > release_notes.md
-          fi
+        run: node scripts/release-notes.mjs --output release_notes.md
 
       - uses: softprops/action-gh-release@v2
         with:
@@ -89,7 +90,7 @@ jobs:
   #         node-version: 20
   #         cache: npm
   #         cache-dependency-path: worker/package-lock.json
-  #     - run: npm install
+  #     - run: npm ci
   #     - run: npm run build:css
   #     - run: npx wrangler deploy
   #       env:
