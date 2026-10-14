@@ -1,0 +1,48 @@
+{
+  "verified_at": "2026-10-14T17:22:37.495214+07:00",
+  "checks": {
+    "browser-final.json": {
+      "total": 50,
+      "pass": 50,
+      "fail": 0
+    },
+    "browser-fixtures.json": {
+      "total": 7,
+      "pass": 7,
+      "fail": 0
+    },
+    "review-regressions.json": {
+      "total": 5,
+      "pass": 5,
+      "fail": 0
+    }
+  },
+  "coverage": {
+    "LF": 820,
+    "LH": 525,
+    "line_percent": 64.02
+  },
+  "assets": {
+    "worker/public/tailwind.css": {
+      "bytes": 23053,
+      "gzip_bytes": 5963
+    },
+    "worker/public/vendor/basecoat/1.0.2/basecoat.cdn.min.css": {
+      "bytes": 218225,
+      "gzip_bytes": 21908
+    },
+    "worker/public/vendor/basecoat/1.0.2/basecoat.min.js": {
+      "bytes": 2606,
+      "gzip_bytes": 1092
+    },
+    "worker/public/vendor/basecoat/1.0.2/drawer.min.js": {
+      "bytes": 1300,
+      "gzip_bytes": 617
+    },
+    "worker/public/ui.js": {
+      "bytes": 31320,
+      "gzip_bytes": 9114
+    }
+  },
+  "combined_ui_gzip_bytes": 38694
+}

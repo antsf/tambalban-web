@@ -11,21 +11,20 @@ export default {
         barlow: ['"Barlow"', "Arial", "sans-serif"],
         plexmono: ['"IBM Plex Mono"', '"Courier New"', "monospace"],
       },
-      // Color palette ported from the Android app (../../tambalban/app/src/main/res/values/
-      // colors.xml + themes.xml) — 2026-08-28, so both front doors share one brand identity.
-      // Named after the app's own token names, not generic Tailwind-style scale numbers, so
-      // a future diff against colors.xml is a straight name-to-name comparison.
+      // Existing Android identity stays in the unchanged logo/icon assets. Web
+      // actions use the approved emerald accent; semantic action utilities must
+      // match Basecoat's CSS variables rather than retain a second purple UI theme.
       // A few tokens have no Android equivalent (the app has no hover states — touch UI — and
       // no light/dark "container" pairing for its error or rating-star colors); those are
       // marked "derived" below with the reasoning, not invented arbitrarily.
       colors: {
         brand: {
-          primary: "#8A2BE2",
-          primaryHover: "#7623C9", // derived: primary darkened ~12%, app has no hover state (touch UI)
+          primary: "#047857",
+          primaryHover: "#065F46",
           onPrimary: "#FFFFFF",
-          primaryContainer: "#DDB8F5",
-          onPrimaryContainer: "#1A0A2E",
-          secondary: "#B47AE0",
+          primaryContainer: "#D1FAE5",
+          onPrimaryContainer: "#064E3B",
+          secondary: "#55565A",
           surface: "#F8F9FA",
           surfaceContainerLow: "#F3F4F5",
           onSurface: "#191C1D",

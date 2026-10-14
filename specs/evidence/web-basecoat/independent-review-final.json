@@ -1,0 +1,69 @@
+{
+  "passed": true,
+  "security_concerns": [],
+  "logic_errors": [],
+  "suggestions": [
+    "Local acceptance is not hosted Linux CI, production-session verification, or authorization to commit, push, tag, publish, or deploy. Those operations remain outside this review's permitted scope.",
+    "Keep the disclosed dependency audit findings (20 issues), Wrangler/Browserslist warnings, and unperformed manual screen-reader/physical-device checks visible; this focused review does not claim to resolve them.",
+    "The unused legacy script-string constants in pages.ts remain a low-priority, nonblocking cleanup opportunity. Their former runtime code is not injected or executed; removing them is not required for these acceptance IDs."
+  ],
+  "requirement_checks": [
+    {
+      "id": "R1",
+      "status": "pass",
+      "evidence": [
+        "Approved prompt lines 30-35 and specs/web-basecoat-evidence.md define locked installation, compatible V8 coverage, LCOV, minimum 55%, and check-job-only cancellation. Inspected worker/package.json and both workflow files: coverage-v8 4.1.10 matches Vitest, active installs use npm ci, LCOV/55% remain, and CI cancellation is confined to check.",
+        "Recomputed the current worker/coverage/lcov.info: 525 covered of 820 lines, 64.02%. Current evidence documents clean npm ci, full 146-test/11-file Node20 and Node25 runs, typecheck/build, and a controlled 0%-coverage fixture correctly rejecting the 55% gate. Historical excluded-test runs are not used as final proof.",
+        "Independently reran npm run test:ci: 13 tests passed, zero failures/skips, exit 0; provider declaration/lock compatibility and workflow-install checks passed."
+      ]
+    },
+    {
+      "id": "R2",
+      "status": "pass",
+      "evidence": [
+        "Inspected scripts/release-notes.mjs and .github/workflows/release.yml: verification and publication use the same exact-section extractor, tag must equal v plus manifest version, and missing or nonsubstantive notes fail before release. Publication depends on verify; main-push deployment remains unchanged and tag deployment remains commented out.",
+        "Independent npm run test:ci execution passed all 13 checks, including matching-section boundaries, missing exact section, tag/version mismatch, empty/whitespace/comment/heading-only notes, prefix collisions, and comments impersonating headings. Exit 0. No tag, workflow dispatch, publication, or deployment was performed."
+      ]
+    },
+    {
+      "id": "UI1",
+      "status": "pass",
+      "evidence": [
+        "Inspected layout.ts, components.ts, ui.js, CSS layer ordering, and DESIGN.md. Typed escaped Hono renderers use actual Basecoat buttons/cards/fields/notices/native drawer; existing HTMX/Leaflet and Tailwind3 architecture remains, without React or a compiler-major migration.",
+        "Independently compared the vendored Basecoat 1.0.2 CSS/core/drawer JS byte-for-byte with the installed official package and recalculated SHA-256: all three match their manifest entries. Minimal core/drawer scripts are loaded rather than all.js.",
+        "H1 is fixed in actual source: hx-history=false is on main inside the serialized page-shell. Inspected review-regressions.mjs and its refreshed JSON: real private Back/navigation test produced zero HTMX history-cache entries. browser-final.json records repeated real swaps/restores, preserved unrelated-map identity, one remounted Leaflet instance, drawer containment/Escape/focus restoration, and no runtime errors.",
+        "Independently ran npm test -- src/views/ui.test.ts src/views/history-privacy.test.ts: 25 tests across two files passed, exit 0. node --check public/ui.js also exited 0."
+      ]
+    },
+    {
+      "id": "UI2",
+      "status": "pass",
+      "evidence": [
+        "Parsed refreshed browser-fixtures.json: all seven scenarios pass. Inspected its actual runner assertions for verified-only discovery, search/detail/contact actions, location grant/denial, failure/retry, contributor draft/validation/submission, real local D1/R2 photo upload, authenticated admin surfaces, pagination/filtering, and bulk-publication public readback. The evidence brief also records 84 local E2E checks with no skips.",
+        "H2 source now previews only committed coordinate changes with writeCoordinates=false, preserving manual text. The real regression uses incremental negative/decimal keystrokes and blur and retains exact typed coordinates.",
+        "M3 source uses inherited closest-form replacement synchronization, filter-XHR ownership/stale-swap rejection, pagination blocking during replacement, committed dataset parameters, and ownership-checked finalization. The inspected regression delays a real fetched response, confirms newer results remain, and checks unapplied search edits do not mix pagination; 36 rows have 36 unique IDs.",
+        "M4 source owns upload cancellation through the submission form independently of Leaflet. The inspected refreshed regression blocks Leaflet JS, uploads an actual image through the local route, and verifies local R2 image readback status/content type. No production writes were needed."
+      ]
+    },
+    {
+      "id": "UI3",
+      "status": "pass",
+      "evidence": [
+        "Inspected approved design requirements, DESIGN.md, CSS, Tailwind tokens, and actual before/after screenshots. The refreshed desktop has adjacent map/results and labeled search/location controls; mobile stays map-first with reachable results and navigation. Purple logo identity remains while web actions/focus/selection consistently use emerald #047857.",
+        "M5 refreshed real-browser regression confirms computed primary and ring #047857 and action background rgb(4, 120, 87). Parsed browser-final.json: 50/50 pass at 390, 768, 1440, and 1920px, including public-page axe checks, no overflow, keyboard drawer behavior, and history restoration; populated fixture evidence covers four admin surfaces with axe checks.",
+        "Added a bounded independent real Edge check at the explicit 360px minimum: /, /login, /register, /submit, and /admin/login each had scrollWidth 360 at viewport width 360, zero WCAG2A/AA/2.1AA axe violations, and no page errors; exit 0. This public /submit check is the unauthenticated surface, with authenticated contributor behavior supplied by the existing real fixture evidence."
+      ]
+    },
+    {
+      "id": "UI4",
+      "status": "pass",
+      "evidence": [
+        "Inspected reduced-motion CSS and Leaflet animation guards; refreshed browser-final.json records computed reduced-motion matches, automatic rather than smooth scrolling, and effectively disabled drawer transition at all four recorded viewport sizes. No unnecessary animation dependency was added.",
+        "Programmatically verified refreshed artifact totals: browser-final 50/50, browser-fixtures 7/7, review-regressions 5/5, with no nonpassing entries. Inspected the real runners and their assertions rather than treating the totals alone as proof.",
+        "Recomputed all five current self-hosted CSS/UI-JS raw and gzip sizes: every entry matches final-metrics.json and their combined gzip size is 38694 bytes. Baseline and refreshed screenshots/metrics are present; this excludes existing HTMX/Leaflet/fonts and does not establish a speed or Lighthouse improvement. Current evidence documents successful typecheck/build and Worker dry-run, not a deployment."
+      ]
+    }
+  ],
+  "unverified_requirements": [],
+  "summary": "One bounded independent focused re-review found H1/H2/M3/M4/M5 resolved in current source and actual refreshed local evidence. All six acceptance IDs pass within the approved local scope; no blocking security or logic finding remains. Independently reran 25 focused view/privacy tests and 13 CI/release regressions, checked five public surfaces at 360px in real Edge, and verified current evidence counts, coverage, official assets, and gzip metrics. Only this scratch verdict JSON was written; no source or remote state was changed."
+}

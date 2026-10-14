@@ -1,7 +1,7 @@
 {
   "ci": {
     "collect": {
-      "startServerCommand": "cd worker && npx wrangler dev --port 8787",
+      "startServerCommand": "cd worker && npx wrangler dev --local --port 8787",
       "startServerReadyPattern": "Ready on",
       "numberOfRuns": 1
     },

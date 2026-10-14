@@ -1,0 +1,37 @@
+[
+  {
+    "id": "H1-private-history",
+    "status": "pass",
+    "evidence": {
+      "privateCacheEntries": 0
+    }
+  },
+  {
+    "id": "H2-manual-coordinate-authority",
+    "status": "pass",
+    "evidence": "real incremental keystrokes and commit retain exact typed coordinates"
+  },
+  {
+    "id": "M3-latest-filter-and-pagination",
+    "status": "pass",
+    "evidence": {
+      "rows": 36,
+      "unique": 36,
+      "delayedResponses": "real route.fetch response, never fabricated"
+    }
+  },
+  {
+    "id": "M4-photo-with-leaflet-unavailable",
+    "status": "pass",
+    "evidence": "real local R2 upload/readback works without a map instance"
+  },
+  {
+    "id": "M5-approved-emerald",
+    "status": "pass",
+    "evidence": {
+      "primary": "#047857",
+      "ring": "#047857",
+      "background": "rgb(4, 120, 87)"
+    }
+  }
+]

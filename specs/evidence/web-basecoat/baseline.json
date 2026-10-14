@@ -1,0 +1,68 @@
+[
+  {
+    "route": "/",
+    "width": 1440,
+    "height": 960,
+    "errors": [],
+    "title": "Peta · TambalBan",
+    "overflow": false,
+    "htmx": true,
+    "leaflet": true,
+    "body": "Langsung ke konten utama\n🛞\nTambalBan\nPeta\nTambah\nMasuk\nPeta bengkel tambal ban\n\nCari bengkel terdekat dan hubungi langsung lewat tombol di popup.\n\n0 bengkel di layar\n+\n−\n Leaflet | © OpenStreetMap\n\nBelum ada bengkel di area ini. Geser peta atau cari nama/kota.\n\nData: OpenStreetMap © kontributor (ODbL) & pengguna. Selalu verifikasi sebelum percaya."
+  },
+  {
+    "route": "/login",
+    "width": 1440,
+    "height": 960,
+    "errors": [],
+    "title": "Masuk · TambalBan",
+    "overflow": false,
+    "htmx": true,
+    "leaflet": false,
+    "body": "Langsung ke konten utama\n🛞\nTambalBan\nPeta\nTambah\nMasuk\nMasuk\n\nAkun yang sama berlaku di aplikasi Android maupun web.\n\nEmail\nPassword\nMasuk\n\nBelum punya akun? Daftar\n\nData: OpenStreetMap © kontributor (ODbL) & pengguna. Selalu verifikasi sebelum percaya."
+  },
+  {
+    "route": "/submit",
+    "width": 1440,
+    "height": 960,
+    "errors": [],
+    "title": "Tambah bengkel · TambalBan",
+    "overflow": false,
+    "htmx": true,
+    "leaflet": false,
+    "body": "Langsung ke konten utama\n🛞\nTambalBan\nPeta\nTambah\nMasuk\nMasuk dulu untuk menambah\n\nSetiap tambahan tercatat atas nama akunmu.\n\nMasuk\n\nBelum punya akun? Daftar\n\nData: OpenStreetMap © kontributor (ODbL) & pengguna. Selalu verifikasi sebelum percaya."
+  },
+  {
+    "route": "/",
+    "width": 390,
+    "height": 844,
+    "errors": [],
+    "title": "Peta · TambalBan",
+    "overflow": false,
+    "htmx": true,
+    "leaflet": true,
+    "body": "Langsung ke konten utama\n🛞\nTambalBan\nPeta bengkel tambal ban\n\nCari bengkel terdekat dan hubungi langsung lewat tombol di popup.\n\n0 bengkel di layar\n+\n−\n Leaflet | © OpenStreetMap\n\nBelum ada bengkel di area ini. Geser peta atau cari nama/kota.\n\nData: OpenStreetMap © kontributor (ODbL) & pengguna. Selalu verifikasi sebelum percaya."
+  },
+  {
+    "route": "/login",
+    "width": 390,
+    "height": 844,
+    "errors": [],
+    "title": "Masuk · TambalBan",
+    "overflow": false,
+    "htmx": true,
+    "leaflet": false,
+    "body": "Langsung ke konten utama\n🛞\nTambalBan\nMasuk\n\nAkun yang sama berlaku di aplikasi Android maupun web.\n\nEmail\nPassword\nMasuk\n\nBelum punya akun? Daftar\n\nData: OpenStreetMap © kontributor (ODbL) & pengguna. Selalu verifikasi sebelum percaya."
+  },
+  {
+    "route": "/submit",
+    "width": 390,
+    "height": 844,
+    "errors": [],
+    "title": "Tambah bengkel · TambalBan",
+    "overflow": false,
+    "htmx": true,
+    "leaflet": false,
+    "body": "Langsung ke konten utama\n🛞\nTambalBan\nMasuk dulu untuk menambah\n\nSetiap tambahan tercatat atas nama akunmu.\n\nMasuk\n\nBelum punya akun? Daftar\n\nData: OpenStreetMap © kontributor (ODbL) & pengguna. Selalu verifikasi sebelum percaya."
+  }
+]

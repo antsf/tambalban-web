@@ -309,7 +309,7 @@ console.log("\n[7] Admin pages");
     const data = await get("/admin/data", { cookie });
     check("admin data page 200", data.status === 200);
     check("data page has 'Semua data'", data.text.includes("Semua data"));
-    check("data page has infinite-scroll JS", data.text.includes("loadMore"));
+    check("data page exposes load-more pagination", data.text.includes('data-action="load-more"') && data.text.includes('src="/ui.js"'));
     check("data page has filters", data.text.includes("verified") && data.text.includes("source"));
 
     const users = await get("/admin/users", { cookie });

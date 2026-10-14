@@ -1,4 +1,5 @@
 import { esc, layout, errorToast, field, checkbox } from "./layout";
+import { button, card, pageHeading } from "./components";
 import { SITE_URL } from "../lib/site";
 import type { Workshop, UnverifiedSubmission, AdminUser, Review } from "../lib/supabase";
 
@@ -178,22 +179,30 @@ async function uploadPhoto(input){
 
 export function homePage(session: { email: string | null; admin: boolean } = { email: null, admin: false }, flash = ""): string {
   const body = `
-    <div class="flex flex-col gap-4">
+    <div class="discovery">
       ${flash}
-      <div class="flex flex-wrap items-center gap-3">
-        <div>
-          <h1 class="font-disp tracking-tight text-lg font-semibold text-brand-onSurface">Peta bengkel tambal ban</h1>
-          <p class="text-sm text-brand-textSecondary">Cari bengkel terdekat dan hubungi langsung lewat tombol di popup.</p>
-        </div>
-        <span id="count" aria-live="polite" class="text-sm text-brand-textSecondary">memuat…</span>
-        <input id="q" type="search" placeholder="Cari nama / kota…" aria-label="Cari bengkel berdasarkan nama atau kota" oninput="requestLoad()"
-          class="ml-auto w-full rounded-lg border border-brand-divider px-3 py-2 text-sm sm:w-64 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer" />
+      <div class="discovery-heading">${pageHeading("Cari tambal ban.", "Temukan bengkel di peta, lalu hubungi langsung.")}<span class="eyebrow">PETA BENGKEL · INDONESIA</span></div>
+      <form id="discovery-search" role="search" class="search-toolbar">
+        <div class="search-field"><label for="q">Nama, alamat, atau kota</label><input id="q" name="search" type="search" class="input" placeholder="Cari bengkel di area peta…" aria-describedby="search-help" /></div>
+        ${button("Cari", { type: "submit" })}${button("Lokasi saya", { variant: "outline", action: "locate" })}
+        <a class="btn results-jump" data-variant="outline" href="#results-panel">Lihat daftar ↓</a>
+      </form>
+      <p id="search-help" class="toolbar-hint">Hasil mengikuti area peta. Geser atau perbesar untuk mencari di wilayah lain.</p>
+      <p id="location-status" role="status" aria-live="polite"></p>
+      <div class="discovery-grid">
+        <section class="map-panel" aria-label="Peta lokasi bengkel">
+          <div id="map" data-map="discovery" role="region" aria-label="Peta bengkel terverifikasi"></div>
+          <div class="map-caption"><span class="map-key"><i aria-hidden="true"></i>Lokasi bengkel</span><span>Data terverifikasi & OpenStreetMap</span></div>
+        </section>
+        ${card(`<header class="results-heading"><h2 id="results-title">Bengkel di area peta</h2><p id="count" role="status" aria-live="polite">Memuat bengkel…</p></header>
+          <div id="map-status" aria-busy="true"><p id="map-hint" role="status" aria-live="polite">Memuat lokasi bengkel…</p><button id="retry-map" type="button" class="btn" data-variant="outline" data-action="retry-map" hidden>Coba lagi</button></div>
+          <ul id="results-list" aria-label="Daftar bengkel yang tampil di peta"></ul>
+          <p class="results-footnote">Jam buka dan layanan dapat berubah. Konfirmasi dulu ke bengkel.</p>`, "results-panel", "results-panel")}
       </div>
-      <div id="map" role="region" aria-label="Peta bengkel terverifikasi" class="h-[70vh] w-full overflow-hidden rounded-xl border border-brand-divider bg-brand-surfaceContainerLow"></div>
-      <p id="map-hint" aria-live="polite" class="text-xs text-brand-textSecondary">Lokasi bengkel yang terverifikasi. Lihat langsung lokasi di peta saat pan/zoom.</p>
-      <ul id="results-list" aria-live="polite" aria-label="Daftar bengkel yang tampil di layar" class="space-y-2"></ul>
+      <div class="contribution-note"><p>Ada bengkel yang belum tercatat?</p><a href="/submit">Tambah lokasi bengkel →</a></div>
+      <noscript><p class="alert">Peta memerlukan JavaScript. Aktifkan JavaScript untuk mencari lokasi bengkel.</p></noscript>
     </div>`;
-  return layout({ title: "Peta", active: "home", maps: true, inlineScripts: [MAP_JS], bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
+  return layout({ title: "Peta", active: "home", maps: true, bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
 }
 
 export function workshopDetailPage(
@@ -286,37 +295,36 @@ export function workshopDetailPage(
 export function loginPage(error?: string, session: { email: string | null; admin: boolean } = { email: null, admin: false }): string {
   const err = error ? errorToast(error) : "";
   const body = `
-    <div class="mx-auto max-w-sm">
-      <h1 class="font-disp tracking-tight mb-1 text-xl font-semibold">Masuk</h1>
-      <p class="mb-6 text-sm text-brand-textSecondary">Akun yang sama berlaku di aplikasi Android maupun web.</p>
+    <div class="auth-page">
+      ${pageHeading("Masuk", "Akun yang sama berlaku di aplikasi Android maupun web.")}
       ${err}
-      <form hx-post="/api/auth/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4 rounded-xl border border-brand-divider bg-white p-6">
-        ${field("email", "Email", "", { type: "email", placeholder: "nama@email.com", required: true })}
-        ${field("password", "Password", "", { type: "password", required: true })}
-        <button class="w-full rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primaryHover">Masuk</button>
+      <form hx-post="/api/auth/login" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="card form-card">
+        ${field("email", "Email", "", { type: "email", placeholder: "nama@email.com", required: true, autocomplete: "email" })}
+        ${field("password", "Password", "", { type: "password", required: true, autocomplete: "current-password" })}
+        <button type="button" class="btn" data-variant="ghost" data-action="toggle-password" aria-controls="password" aria-pressed="false">Tampilkan password</button>
+        ${button("Masuk", { type: "submit", className: "full-width" })}
       </form>
       <p class="mt-4 text-center text-sm text-brand-textSecondary">Belum punya akun?
         <a href="/register" class="font-medium text-brand-primary hover:underline">Daftar</a></p>
     </div>`;
-  return layout({ title: "Masuk", active: "", bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
+  return layout({ title: "Masuk", active: "login", bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
 }
 
 export function registerPage(error?: string, session: { email: string | null; admin: boolean } = { email: null, admin: false }): string {
   const err = error ? errorToast(error) : "";
   const body = `
-    <div class="mx-auto max-w-sm">
-      <h1 class="font-disp tracking-tight mb-1 text-xl font-semibold">Daftar akun</h1>
-      <p class="mb-6 text-sm text-brand-textSecondary">Dipakai untuk melacak siapa yang menambah data.</p>
+    <div class="auth-page">
+      ${pageHeading("Daftar akun", "Bantu melengkapi peta tambal ban di sekitar Anda.")}
       ${err}
-      <form hx-post="/api/auth/register" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="space-y-4 rounded-xl border border-brand-divider bg-white p-6">
-        ${field("email", "Email", "", { type: "email", placeholder: "nama@email.com", required: true })}
-        ${field("password", "Password", "", { type: "password", required: true, hint: "Minimal 8 karakter." })}
-        <button class="w-full rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primaryHover">Daftar</button>
+      <form hx-post="/api/auth/register" hx-ext="json-enc" hx-target="#toast" hx-swap="innerHTML" hx-disabled-elt="find button" class="card form-card">
+        ${field("email", "Email", "", { type: "email", placeholder: "nama@email.com", required: true, autocomplete: "email" })}
+        ${field("password", "Password", "", { type: "password", required: true, hint: "Minimal 8 karakter.", autocomplete: "new-password" })}
+        ${button("Daftar", { type: "submit", className: "full-width" })}
       </form>
       <p class="mt-4 text-center text-sm text-brand-textSecondary">Sudah punya akun?
         <a href="/login" class="font-medium text-brand-primary hover:underline">Masuk</a></p>
     </div>`;
-  return layout({ title: "Daftar", active: "", bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
+  return layout({ title: "Daftar", active: "register", bodyClass: "flex min-h-screen flex-col", admin: session.admin, user: session.email ?? undefined }, body);
 }
 
 export function submitPage(loggedInEmail: string | null, isAdmin = false, error?: string): string {
@@ -345,12 +353,12 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
       <h1 class="font-disp tracking-tight mb-1 text-xl font-semibold">Tambah bengkel</h1>
       <p class="mb-6 text-sm text-brand-textSecondary">Masuk sebagai <span class="font-medium text-brand-onSurface">${esc(loggedInEmail)}</span>. Kiriman jadi <b>terverifikasi</b> setelah ditinjau admin.</p>
       ${err}
-      <div class="space-y-4 rounded-xl border border-brand-divider bg-white p-6">
+      <div class="card form-card">
         <div>
           <label class="mb-1 block text-sm font-medium text-brand-onSurface">1. Titik lokasi di peta</label>
-          <div id="pick" role="region" aria-label="Peta pemilih lokasi" class="h-64 w-full overflow-hidden rounded-xl border border-brand-divider bg-brand-surfaceContainerLow"></div>
+          <div id="pick" data-map="picker" role="region" aria-label="Peta pemilih lokasi" class="h-64 w-full overflow-hidden rounded-xl border border-brand-divider bg-brand-surfaceContainerLow"></div>
           <p id="pick-note" aria-live="polite" class="mt-1 text-xs text-brand-textSecondary">Klik peta untuk menandai lokasi, cari alamat, atau pakai lokasi Anda.</p>
-          <button type="button" onclick="useMyLocation()" class="mt-2 rounded-lg border border-brand-divider px-3 py-2 text-sm font-medium text-brand-onSurface hover:bg-brand-surface">
+          <button type="button" data-action="locate" class="btn mt-2" data-variant="outline">
             Pakai lokasi saya
           </button>
         </div>
@@ -359,7 +367,7 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
           <div class="flex gap-2">
             <input id="addr" type="text" placeholder="Alamat / nama jalan / kota…"
               class="w-full rounded-lg border border-brand-divider px-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer" />
-            <button type="button" onclick="geocode()" class="shrink-0 rounded-lg bg-brand-onSurface px-4 py-2 text-sm font-medium text-white hover:bg-brand-onSurfaceVariant">Cari</button>
+            <button type="button" data-action="geocode" class="btn shrink-0">Cari</button>
           </div>
           <p id="geocode-msg" aria-live="polite" class="mt-1 text-xs text-brand-textSecondary"></p>
         </div>
@@ -367,12 +375,12 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label for="lat" class="mb-1 block text-sm font-medium text-brand-onSurface">Latitude</label>
-              <input id="lat" name="lat" type="number" step="any" min="-11" max="6" required oninput="syncPinFromInputs()"
+              <input id="lat" name="lat" type="number" step="any" min="-11" max="6" required
                 class="w-full rounded-lg border border-brand-divider px-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer" />
             </div>
             <div>
               <label for="lon" class="mb-1 block text-sm font-medium text-brand-onSurface">Longitude</label>
-              <input id="lon" name="lon" type="number" step="any" min="95" max="141" required oninput="syncPinFromInputs()"
+              <input id="lon" name="lon" type="number" step="any" min="95" max="141" required
                 class="w-full rounded-lg border border-brand-divider px-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer" />
             </div>
           </div>
@@ -397,15 +405,15 @@ export function submitPage(loggedInEmail: string | null, isAdmin = false, error?
           </div>
           <div>
             <label for="photo" class="mb-1 block text-sm font-medium text-brand-onSurface">Foto bengkel (opsional)</label>
-            <input id="photo" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadPhoto(this)"
+            <input id="photo" type="file" accept="image/jpeg,image/png,image/webp"
               class="w-full text-sm text-brand-onSurfaceVariant file:mr-3 file:rounded-lg file:border-0 file:bg-brand-surfaceContainerLow file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-onSurface hover:file:bg-brand-divider" />
             <p id="photo-status" class="mt-1 text-xs text-brand-textSecondary"></p>
           </div>
-          <button class="w-full rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primaryHover">Kirim untuk ditinjau</button>
+          ${button("Kirim untuk ditinjau", { type: "submit", className: "full-width" })}
         </form>
       </div>
     </div>`;
-  return layout({ title: "Tambah bengkel", active: "submit", admin: isAdmin, user: loggedInEmail ?? undefined, maps: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [SUBMIT_MAP_JS] }, body);
+  return layout({ title: "Tambah bengkel", active: "submit", admin: isAdmin, user: loggedInEmail ?? undefined, maps: true, bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
 export function adminLoginPage(error?: string): string {
@@ -438,7 +446,7 @@ function submissionCard(row: UnverifiedSubmission): string {
     .join(" · ");
   return `<li id="wksp-${esc(row.id)}" data-id="${esc(row.id)}" class="rounded-xl border border-brand-divider bg-white p-4">
     <div class="flex items-start gap-3">
-      <input type="checkbox" class="q-cb mt-1 h-4 w-4 rounded border-brand-divider text-brand-primary focus:ring-brand-primaryContainer" data-id="${esc(row.id)}" onchange="updateBulkBar()" aria-label="Pilih ${esc(row.name)}" />
+      <input type="checkbox" class="q-cb checkbox mt-1" data-id="${esc(row.id)}" aria-label="Pilih ${esc(row.name)}" />
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0">
@@ -503,17 +511,17 @@ export function adminQueuePage(rows: UnverifiedSubmission[]): string {
     </div>
     <div id="bulk-bar" class="hidden mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-brand-tertiaryContainer bg-brand-tertiaryContainer px-4 py-3">
       <span id="bulk-count" class="text-sm font-medium text-brand-onTertiaryContainer"></span>
-      <button onclick="bulkPublish()" class="rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-primaryHover">Terbitkan terpilih</button>
-      <button onclick="bulkRemove()" class="rounded-lg border border-brand-errorContainer px-3 py-1.5 text-xs font-medium text-brand-error hover:bg-brand-errorContainer">Hapus terpilih</button>
-      <button onclick="document.querySelectorAll('.q-cb').forEach(c=>{c.checked=false;});updateBulkBar()" class="text-xs text-brand-textSecondary hover:underline">Batal</button>
+      ${button("Terbitkan terpilih", { action: "bulk-publish" })}
+      ${button("Hapus terpilih", { variant: "destructive", action: "bulk-remove" })}
+      ${button("Batal", { variant: "ghost", action: "bulk-clear" })}
     </div>
     <div class="mt-3 flex items-center gap-2 text-sm text-brand-onSurfaceVariant">
-      <input type="checkbox" onchange="toggleAll(this)" class="h-4 w-4 rounded border-brand-divider text-brand-primary focus:ring-brand-primaryContainer" aria-label="Pilih semua" />
+      <input type="checkbox" data-select-all class="checkbox" aria-label="Pilih semua" />
       <span>Pilih semua</span>
     </div>
     <ul id="queue" class="mt-2 space-y-3">${list}</ul>
     <p class="mt-6 text-xs text-brand-textSecondary">Menerbitkan menandai verified=true dan menguncinya. Menghapus menghapus baris dari database.</p>`;
-  return layout({ title: "Antrian admin", active: "admin", admin: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [BULK_ACTIONS_JS] }, body);
+  return layout({ title: "Antrian admin", active: "admin", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
 export interface AdminDataQuery {
@@ -544,7 +552,7 @@ function adminDataRow(row: Workshop): string {
   ]
     .filter(Boolean)
     .join(" · ");
-  return `<li id="wksp-${esc(row.id)}" class="rounded-xl border border-brand-divider bg-white p-4">
+  return `<li id="wksp-${esc(row.id)}" data-id="${esc(row.id)}" class="rounded-xl border border-brand-divider bg-white p-4">
     <div class="flex flex-wrap items-start justify-between gap-2">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">
@@ -595,22 +603,25 @@ function resetOffset(){_offset=0;}
 
 export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): string {
   const sel = (name: string, value: string | undefined, options: Array<[string, string]>, label: string) =>
-    `<select name="${name}" aria-label="${label}" hx-get="/api/admin/workshops" hx-target="#data-wrap" hx-swap="innerHTML" hx-trigger="change"
-        hx-include="closest form" onchange="resetOffset()" class="rounded-lg border border-brand-divider px-2 py-1.5 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer">
+    `<select name="${name}" aria-label="${label}" hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" hx-trigger="change"
+        hx-include="closest form" class="select" >
       <option value="">${esc(options[0][1])}</option>
       ${options
         .slice(1)
         .map(([v, label]) => `<option value="${v}" ${value === v ? "selected" : ""}>${esc(label)}</option>`)
         .join("")}
     </select>`;
-  const hasMore = rows.length >= 20;
+  const limit = query.limit ?? 100;
+  const offset = query.offset ?? 0;
+  const hasMore = rows.length >= limit;
   const body = `
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h1 class="font-disp tracking-tight text-lg font-semibold text-brand-onSurface">Semua data</h1>
         <a href="/admin/data" class="text-sm text-brand-primary hover:underline">Muat ulang</a>
       </div>
-      <form hx-get="/api/admin/workshops" hx-target="#data-wrap" hx-swap="innerHTML" class="flex flex-wrap items-center gap-2">
+      <form hx-get="/api/admin/workshops" hx-target="#data-list" hx-swap="innerHTML" hx-sync="closest form:replace" class="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="limit" value="${limit}" />
         <input name="search" type="search" value="${esc(query.search ?? "")}" placeholder="Cari nama / alamat / kota…" aria-label="Cari nama, alamat, atau kota"
           class="w-full rounded-lg border border-brand-divider px-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primaryContainer sm:w-64" />
         ${sel("verified", query.verified, [["", "Semua status"], ["false", "Belum terverifikasi"], ["true", "Terverifikasi"]], "Filter status")}
@@ -618,12 +629,12 @@ export function adminAllDataPage(rows: Workshop[], query: AdminDataQuery): strin
         <button class="rounded-lg bg-brand-onSurface px-4 py-2 text-sm font-medium text-white hover:bg-brand-onSurfaceVariant">Terapkan</button>
       </form>
       <div id="data-wrap">
-        <ul id="data-list" class="space-y-3">${adminDataList(rows)}</ul>
-        ${hasMore ? `<button id="load-more" onclick="loadMore()" class="mt-4 w-full rounded-lg border border-brand-divider px-4 py-2 text-sm font-medium text-brand-onSurface hover:bg-brand-surface">Muat lebih banyak</button>` : ""}
+        <ul id="data-list" data-offset="${offset}" data-limit="${limit}" data-exhausted="${!hasMore}" class="space-y-3">${adminDataList(rows)}</ul>
+        ${button("Muat lebih banyak", { variant: "outline", action: "load-more", id: "load-more", className: "mt-4 full-width", hidden: !hasMore })}
       </div>
       <p class="text-xs text-brand-textSecondary">Terbitkan menandai verified=true; Hapus menghapus baris dari database.</p>
     </div>`;
-  return layout({ title: "Data admin", active: "data", admin: true, bodyClass: "flex min-h-screen flex-col", inlineScripts: [ADMIN_DATA_INFINITE_JS] }, body);
+  return layout({ title: "Data admin", active: "data", admin: true, bodyClass: "flex min-h-screen flex-col" }, body);
 }
 
 function fmtDate(iso: string): string {

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "real local D1: public verified-only map/list/search/detail",
+    "status": "pass",
+    "result": {
+      "contacts": [
+        "/workshops/00000000-0000-4000-8000-000000000001",
+        "https://wa.me/62000000000",
+        "tel:+62000000000",
+        "https://example.invalid/"
+      ],
+      "fixtureData": "synthetic local only"
+    }
+  },
+  {
+    "name": "real permission-denied geolocation and request failure/retry",
+    "status": "pass",
+    "result": "network failure injected as failure, never fake response"
+  },
+  {
+    "name": "real location granted inside Indonesia",
+    "status": "pass",
+    "result": "Peta dipusatkan ke lokasi Anda. Posisi perangkat bisa kurang akurat."
+  },
+  {
+    "name": "local contributor API login session + real picker/photo/draft error + submission moderation",
+    "status": "pass",
+    "result": {
+      "fixtureData": "synthetic contributor, real local D1/R2 routes"
+    }
+  },
+  {
+    "name": "local admin authentication + page accessibility",
+    "status": "pass",
+    "result": "4 admin surfaces, actual local fixture session"
+  },
+  {
+    "name": "local admin filter + pagination + bulk publish reflect verified-only route",
+    "status": "pass",
+    "result": {
+      "initialPageRows": 20,
+      "fixturePublished": "00000000-0000-4000-8000-000000000031"
+    }
+  },
+  {
+    "name": "runtime console after populated/authenticated flows",
+    "status": "pass",
+    "result": []
+  }
+]
