@@ -79,4 +79,6 @@ User subsequently authorized completing publication and providing the live websi
 
 ### Residual limits
 
+Hosted CI first exposed a real npm10/npm11 lockfile difference: Vite8's optional esbuild peer was incompatible with Wrangler's root esbuild0.17, while npm11's Windows-generated lock omitted the nested peer. The exact Node20/npm10 npm-ci dry-run reproduced EUSAGE; npm10 package-lock-only regeneration added the missing nested esbuild0.28.2/platform metadata without upgrading existing packages. The same npm10 clean-install validator then passed. Publication remains gated on hosted rerun, not the earlier Windows-only install claim.
+
 GitHub/Linux CI, real tag/release/publication and production sessions not run. npm audit20issues(8moderate/12high), baseline19; no forced unrelated upgrade. Wrangler3/Browserslist warnings remain. Manual screen-reader/physical-device checks unverified. Old unused inline-script constants(M7 low) remain in source but are not injected/executed; public/ui.js is the sole app runtime. Independent review explicitly treats these disclosed limitations as nonblocking within the approved local acceptance scope.
